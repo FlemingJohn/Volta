@@ -12,4 +12,7 @@ export class ValidationRequestDto {
     @IsString()
     freeTextInput?: string;
 
+    @IsOptional()
+    @IsString()
+    recordId?: string;
 }
