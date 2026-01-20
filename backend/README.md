@@ -83,5 +83,5 @@ The primary endpoint for cable validation.
 2. `freeTextInput`
 3. `structuredInput` (Fallback)
 
-## LLM Grounding
-The AI model is grounded using standards documents located in `src/standards/`. During validation, the relevant standard's content is injected into the prompt to ensure the AI uses authoritative data rather than internal training weights only.
+## LLM Contextual Reasoning
+The AI model is provided with technical context using standards documents located in `src/standards/`. During validation, the relevant standard's content is injected into the prompt to ensure the AI uses authoritative data rather than internal training weights only.

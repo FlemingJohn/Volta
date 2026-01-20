@@ -4,11 +4,17 @@ Volta is a sophisticated validation platform designed to ensure low-voltage cabl
 
 ## System Overview
 
-Volta is built as a production-ready, decoupled full-stack system. Unlike rigid rule-based engines, Volta utilizes a **grounded reasoning engine** where an AI model interprets design parameters against real-world technical standards provided as context.
+Volta is built as a production-ready, decoupled full-stack system. Unlike rigid rule-based engines, Volta utilizes a **context-based reasoning engine** where an AI model interprets design parameters against real-world technical standards.
+
+### Core Philosophy: Reasoning-First Validation
+
+*   **Zero Hardcoding**: IEC validation logic is intentionally performed by AI. No IEC rules, lookup tables, or threshold values are hardcoded in the application logic or stored in databases.
+*   **Standards Contextualization**: The system dynamically reads markdown-based IEC standards (IEC 60502-1, IEC 60228) from the `/standards` directory. This context is injected into the AI's short-term memory (prompt context) during validation.
+*   **Transparent Engineering**: By reasoning against actual standards, the AI provides specific citations and engineering justifications for every PASS/WARN/FAIL decision.
 
 ### Key Capabilities
 
-*   **Standards-Grounded Validation**: Real-time checking against IEC 60502-1 (Construction) and IEC 60228 (Conductors).
+*   **Standards-Context Validation**: Real-time checking against IEC 60502-1 (Construction) and IEC 60228 (Conductors).
 *   **Multi-Input Support**: Accept structured JSON, raw technical descriptions (Free-text), or fetch existing records by **Record ID**.
 *   **AI Extraction Flow**: Intelligent parsing of natural language to extract core parameters (Voltage, Material, CSA, etc.) using Genkit Flows.
 *   **Transparent Engineering Results**: Field-by-field PASS/WARN/FAIL status with technical justifications.
@@ -30,7 +36,7 @@ graph LR
         Logic -->|Free-Text| Extract[Extraction Flow]
         Logic -->|Structured| Validate[Validation Flow]
         Extract -->|Extracted Data| Validate
-        Validate -->|Grounding| Standards[IEC Standards Context]
+        Validate -->|Contextualization| Standards[IEC Standards Context]
         Validate -->|Inference| LLM[Gemma 3]
     end
 
@@ -47,8 +53,8 @@ The Volta validation engine operates through a multi-stage pipeline designed for
 1.  **Ingestion Phase**: The Next.js frontend captures technical data via structured forms or raw text. This is transmitted to the NestJS backend via a type-safe POST request.
 2.  **Orchestration Phase**: The `DesignValidationService` acts as the brain. It checks for a `recordId` to fetch historical data from MongoDB. If free-text is present, it prioritizes extraction.
 3.  **AI Extraction (Genkit)**: The **Extraction Flow** uses Zod schemas to force the LLM to output a clean JSON object from messy technical descriptions.
-4.  **Standards Grounding**: Before validation, the system reads markdown-based IEC standards from the `/standards` directory. This context is injected into the AI's system prompt, ensuring the model's "reasoning" is grounded in actual engineering requirements rather than general knowledge.
-5.  **Validation & Reasoning**: The **Validation Flow** executes on Gemma 3. It performs a field-by-field audit, generating specific comments and an overall confidence score based on how well the design matches the grounded standards.
+4.  **Standards Contextualization**: Before validation, the system reads markdown-based IEC standards from the `/standards` directory. This context is injected into the AI's system prompt, ensuring the model's "reasoning" is based on actual engineering requirements provided in the context rather than general knowledge.
+5.  **Validation & Reasoning**: The **Validation Flow** executes on Gemma 3. It performs a field-by-field audit, generating specific comments and an overall confidence score based on how well the design matches the contextual standards.
 6.  **Presentation Phase**: The final payload is mapped to a professional DataGrid, with a dedicated sidebar for engineers to inspect the AI's underlying logic.
 
 ### AI Engineering (Prompts)
@@ -66,15 +72,20 @@ CRITICAL: If a field is NOT mentioned, OMIT the key.
 ```
 
 #### 2. Validation Flow
-> Acting as an expert engineer to validate design against grounded IEC standards.
+> Acting as an expert engineer to validate design against dynamic standards context.
 ```text
-System: You are an expert cable design engineer specializing in IEC 60502-1 and IEC 60228.
-Prompt: Validate this cable design strictly against IEC standards:
-${fields}
+System: You are a Senior Cable Design Validator specializing in IEC 60502-1 and IEC 60228.
+Prompt: 
+--- START STANDARDS CONTEXT ---
+${standardsContext} (Loaded dynamically from /standards/*.md)
+--- END STANDARDS CONTEXT ---
 
-VALIDATION RULES:
-1. IEC 60502-1 specifies nominal insulation thickness.
-2. If provided value is significantly below nominal, it must be a FAIL.
+AUDIT TARGET: ${fields}
+
+VALIDATION COMMANDS:
+1. MAP the Audit Target to the correct tables in the STANDARDS CONTEXT.
+2. Cite specific Table or Clause numbers from the context.
+3. Be pedantic; even 0.1mm below nominal is a FAIL.
 ```
 
 ### Validation Workflow
@@ -100,7 +111,7 @@ Volta follows a strict data precedence logic to ensure the most reliable source 
 ### AI Reasoning Engine
 *   **Host**: Ollama (Local).
 *   **Model**: Gemma 3:1B (815MB variant).
-*   **Grounding**: Standards-based prompting for authoritative validation decisions.
+*   **Contextualization**: Standards-based prompting for authoritative validation decisions.
 
 ## Project Structure
 
@@ -182,4 +193,4 @@ Volta/
 
 ## Disclaimer
 
-This system is an AI-assisted validation tool. While it uses grounded technical standards for reasoning, validation results should be used as decision-support tools and do not replace professional engineering certification for safety-critical hardware.
+This system is an AI-assisted validation tool. While it uses technical standard contexts for reasoning, validation results should be used as decision-support tools and do not replace professional engineering certification for safety-critical hardware.

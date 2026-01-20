@@ -19,7 +19,7 @@ graph LR
 
     subgraph AI ["AI Reasoning Engine (Genkit)"]
         Flows["Validation & Extraction Flows"]
-        Grounding["Standards Grounding (IEC)"]
+        Context["Standards Context (IEC)"]
         LLM["Gemma 3 (Ollama)"]
     end
 
@@ -28,7 +28,7 @@ graph LR
     Service --> Parser
     Parser <--> DB
     Service --> Flows
-    Flows --> Grounding
+    Flows --> Context
     Flows --> LLM
     Service --> Results
     Service --> Drawer
