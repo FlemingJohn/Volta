@@ -11,7 +11,6 @@ export interface StructuredInput {
 export interface ValidationRequest {
     structuredInput?: StructuredInput;
     freeTextInput?: string;
-    recordId?: string;
 }
 
 export type ValidationStatus = 'PASS' | 'WARN' | 'FAIL';

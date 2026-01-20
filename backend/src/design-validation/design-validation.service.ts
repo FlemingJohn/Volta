@@ -18,9 +18,6 @@ export class DesignValidationService {
             );
         }
 
-        if (validationRequest.recordId) {
-            throw new Error('Database integration not yet implemented');
-        }
 
         const aiValidationResult = await this.aiGatewayService.validateDesign(designData);
 
