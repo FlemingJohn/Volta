@@ -1,16 +1,20 @@
 import { z } from './genkit-config';
 
-/**
- * Preprocessor to handle AI returning strings for numeric fields.
- * Explicitly allows strings in the schema to pass Genkit's initial validation.
- */
-const createNumericSchema = () => z.union([z.number(), z.string()]).transform((val) => {
-    if (typeof val === 'string') {
-        const clean = val.replace(/[^0-9.]/g, '');
+const createNumericSchema = () => z.any().transform((val) => {
+
+    const actualVal = Array.isArray(val) ? val[0] : val;
+
+    if (typeof actualVal === 'string') {
+        const clean = actualVal.replace(/[^0-9.]/g, '');
         const parsed = parseFloat(clean);
         return isNaN(parsed) ? undefined : parsed;
     }
-    return val;
+
+    if (typeof actualVal === 'number') {
+        return actualVal;
+    }
+
+    return undefined;
 }).optional();
 
 export const StructuredInputSchema = z.object({
