@@ -28,7 +28,7 @@ export class OllamaClientService {
                 `${this.ollamaApiUrl}/api/generate`,
                 requestPayload,
                 {
-                    timeout: 60000,
+                    timeout: 120000,
                 },
             );
 

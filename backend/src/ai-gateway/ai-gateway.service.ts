@@ -19,9 +19,10 @@ export class AIGatewayService {
         );
 
         try {
-            return JSON.parse(aiResponse);
+            const cleanResponse = aiResponse.replace(/```json\n?|```/g, '').trim();
+            return JSON.parse(cleanResponse);
         } catch (error) {
-            throw new Error(`Failed to parse AI response: ${error.message}`);
+            throw new Error(`Failed to parse AI response: ${error.message}. Response was: ${aiResponse}`);
         }
     }
 
@@ -31,9 +32,10 @@ export class AIGatewayService {
         const aiResponse = await this.ollamaClient.generateCompletion(extractionPrompt);
 
         try {
-            return JSON.parse(aiResponse);
+            const cleanResponse = aiResponse.replace(/```json\n?|```/g, '').trim();
+            return JSON.parse(cleanResponse);
         } catch (error) {
-            throw new Error(`Failed to parse AI extraction response: ${error.message}`);
+            throw new Error(`Failed to parse AI extraction response: ${error.message}. Response was: ${aiResponse}`);
         }
     }
 }
