@@ -1,4 +1,4 @@
-import { z } from 'zod';
+import { z } from './genkit-config';
 
 export const StructuredInputSchema = z.object({
     standard: z.string().optional(),

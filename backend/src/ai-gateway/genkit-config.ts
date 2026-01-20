@@ -1,4 +1,5 @@
-import { genkit } from 'genkit';
+import { genkit, z } from 'genkit';
+export { z };
 import { ollama } from 'genkitx-ollama';
 
 export const ai = genkit({

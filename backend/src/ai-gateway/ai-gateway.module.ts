@@ -4,7 +4,7 @@ import { OllamaClientService } from './ollama-client.service';
 import { PromptBuilderService } from './prompt-builder.service';
 
 @Module({
-    providers: [AIGatewayService, OllamaClientService, PromptBuilderService],
+    providers: [AIGatewayService],
     exports: [AIGatewayService],
 })
 export class AIGatewayModule { }
