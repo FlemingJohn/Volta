@@ -3,9 +3,9 @@ import * as path from 'path';
 import { z, ai } from './genkit-config';
 import { StructuredInputSchema, ValidationResponseSchema } from './schemas';
 
-
-const gemmaModel = 'ollama/gemma3:1b';
-
+const OLLAMA_MODEL = `ollama/${process.env.OLLAMA_MODEL || 'gemma3:1b'}`;
+const GEMINI_MODEL = `googleai/${process.env.GEMINI_MODEL || 'gemini-1.5-flash'}`;
+const USE_FALLBACK = process.env.USE_GEMINI_FALLBACK === 'true';
 
 export const extractFieldsFlow = ai.defineFlow(
     {
@@ -15,27 +15,16 @@ export const extractFieldsFlow = ai.defineFlow(
     },
     async (freeText) => {
         const { output } = await ai.generate({
-            model: gemmaModel,
-            system: `You are a precision-focused Cable Engineering Data Extractor.
-Your goal is to parse messy technical descriptions into a strict JSON schema for downstream validation.
-Maintain absolute data integrity. Do not guess or hallucinate values.`,
-            prompt: `Extract cable design parameters from this technical text:
+            model: OLLAMA_MODEL,
+            system: `You are a Cable Engineering Data Extractor. Parse technical descriptions into structured JSON. Do not guess or hallucinate values.`,
+            prompt: `Extract cable design parameters from: "${freeText}"
 
-"${freeText}"
+Fields: standard, voltage, conductorMaterial, conductorClass, csa, insulationMaterial, insulationThickness
 
-Fields to extract:
-- standard: Must be the IEC standard number (e.g., 60502-1).
-- voltage: Rated voltage (e.g., 0.6/1 kV).
-- conductorMaterial: Cu, Al, etc.
-- conductorClass: Class 1, 2, 5, or 6.
-- csa: Cross-sectional area in mm² (Numeric only).
-- insulationMaterial: PVC, XLPE, etc.
-- insulationThickness: Nominal thickness in mm (Numeric only).
-
-CRITICAL RULES:
-1. If a field is NOT explicitly mentioned or cannot be inferred with 95% certainty, OMIT it.
-2. For numeric fields (csa, insulationThickness), provide only the number. No units in the value.
-3. Return ONLY a pure JSON object. No preamble.`,
+Rules:
+1. Only extract explicitly mentioned values (95% certainty)
+2. Numeric fields: numbers only, no units
+3. Return pure JSON object`,
             config: {
                 temperature: 0.0,
                 maxOutputTokens: 500,
@@ -59,90 +48,128 @@ export const validateDesignFlow = ai.defineFlow(
         outputSchema: ValidationResponseSchema,
     },
     async (designData) => {
+        const pathsToTry = [
+            path.join(process.cwd(), '..', 'standards'),
+            path.join(process.cwd(), 'standards'),
+            path.join(__dirname, '..', '..', '..', 'standards')
+        ];
+
+        let standardsDir = '';
+        for (const p of pathsToTry) {
+            if (fs.existsSync(p)) {
+                standardsDir = p;
+                break;
+            }
+        }
+
+        let standardsContext = '';
+        try {
+            if (fs.existsSync(standardsDir)) {
+                const files = fs.readdirSync(standardsDir);
+                for (const file of files) {
+                    if (file.endsWith('.md')) {
+                        const content = fs.readFileSync(path.join(standardsDir, file), 'utf-8');
+                        standardsContext += `\n--- ${file} ---\n${content}\n`;
+                    }
+                }
+            }
+        } catch (error) {
+            console.error('Failed to read standards:', error);
+        }
+
         const fields: string[] = [];
         if (designData.standard) fields.push(`Standard: ${designData.standard}`);
         if (designData.voltage) fields.push(`Voltage: ${designData.voltage}`);
         if (designData.conductorMaterial) fields.push(`Conductor Material: ${designData.conductorMaterial}`);
         if (designData.conductorClass) fields.push(`Conductor Class: ${designData.conductorClass}`);
-        if (designData.csa) fields.push(`Cross-Sectional Area: ${designData.csa} mm²`);
+        if (designData.csa) fields.push(`CSA: ${designData.csa} mm²`);
         if (designData.insulationMaterial) fields.push(`Insulation Material: ${designData.insulationMaterial}`);
         if (designData.insulationThickness) fields.push(`Insulation Thickness: ${designData.insulationThickness} mm`);
 
-        try {
-            const { output } = await ai.generate({
-                model: gemmaModel,
-                system: `You are a Senior Cable Design Validator specializing in IEC 60502-1 and IEC 60228.
-Audit designs with technical rigor using your knowledge of these standards.
+        const systemPrompt = `You are a Cable Design Validator for IEC 60502-1 and IEC 60228.
+Use the provided standards context to validate cable designs.
+CRITICAL: Return actual validation data as JSON, NOT schema definitions.
+CRITICAL: Use ONLY the actual input values provided, do NOT use example values.`;
 
-STATUS DEFINITIONS:
-- PASS: Meets or exceeds standard requirements.
-- WARN: Data missing, ambiguous, or borderline.
-- FAIL: Below minimum safety/construction requirements.
+        const userPrompt = `STANDARDS CONTEXT:
+${standardsContext}
 
-RULES:
-1. Use your knowledge of IEC 60502-1 and IEC 60228 standards.
-2. Cite specific Tables/Clauses when possible (e.g., "Table 5, IEC 60502-1").
-3. Insulation thickness: 0.1mm below nominal is a FAIL.
-4. Set confidence based on data completeness.
-
-CRITICAL: Return actual validation data, NOT a schema definition.
-You must validate the ACTUAL values provided above, not copy this example.`,
-                prompt: `Validate this cable design:
-
+CABLE DESIGN TO VALIDATE:
 ${fields.join('\n')}
 
-Return JSON in this EXACT structure (replace <values> with your actual validation results):
+Instructions:
+1. Validate these 7 fields: standard, voltage, conductorMaterial, conductorClass, csa, insulationMaterial, insulationThickness
+2. For each field, determine status using the standards context above:
+   - PASS: Complies with IEC standards
+   - WARN: Missing or not specified
+   - FAIL: Violates IEC standards (cite specific table/clause)
+3. Calculate confidence:
+   - 0.85-1.0 if all fields PASS
+   - 0.5-0.84 if some WARN but no FAIL
+   - 0.2-0.49 if any FAIL
+
+Return JSON format:
 {
-  "fields": {
-    "standard": "<copy from input>",
-    "voltage": "<copy from input>",
-    "conductorMaterial": "<copy from input>",
-    "conductorClass": "<copy from input>",
-    "csa": <number from input>,
-    "insulationMaterial": "<copy from input>",
-    "insulationThickness": <number from input>
-  },
+  "fields": {copy all input fields here},
   "validation": [
     {
-      "field": "<field name you are validating>",
-      "status": "<PASS or WARN or FAIL based on IEC standards>",
-      "provided": <actual value from input>,
-      "expected": <expected value per IEC standard>,
-      "comment": "<cite specific table/clause and explain>"
+      "field": "fieldName",
+      "status": "PASS or WARN or FAIL",
+      "provided": actualValue,
+      "expected": expectedValue,
+      "comment": "explanation with IEC table reference from standards context"
     }
   ],
-  "confidence": {
-    "overall": <0.0 to 1.0>
-  },
-  "aiReasoning": "<your detailed reasoning>"
+  "confidence": {"overall": numberBetween0And1},
+  "aiReasoning": "Detailed explanation including: (1) Overall compliance status, (2) Critical issues found with specific IEC table/clause references from standards context, (3) Safety implications if any, (4) Recommendations to fix non-compliant fields"
 }
 
-IMPORTANT: For 16mm² conductor, nominal insulation is 1.0mm per IEC 60502-1 Table 5. 
-If provided thickness is 0.9mm, that is 0.1mm below nominal = FAIL.`,
-                config: {
-                    temperature: 0.0,
-                    maxOutputTokens: 500,
-                },
+IMPORTANT: Use the ACTUAL values from the cable design above and cite specific tables/clauses from the standards context provided.`;
+
+        const config = {
+            temperature: 0.0,
+            maxOutputTokens: 600,
+        };
+
+        try {
+            const { output } = await ai.generate({
+                model: OLLAMA_MODEL,
+                system: systemPrompt,
+                prompt: userPrompt,
+                config,
                 output: { schema: ValidationResponseSchema },
             });
 
-            if (!output) {
-                throw new Error('Failed to generate validation results from AI');
+            if (output) {
+                return output;
+            }
+        } catch (ollamaError) {
+            const isMemoryError = ollamaError.message?.includes('memory layout') ||
+                ollamaError.message?.includes('out of memory');
+
+            if (isMemoryError && USE_FALLBACK) {
+                try {
+                    const { output } = await ai.generate({
+                        model: GEMINI_MODEL,
+                        system: systemPrompt,
+                        prompt: userPrompt,
+                        config,
+                        output: { schema: ValidationResponseSchema },
+                    });
+
+                    if (output) {
+                        return output;
+                    }
+                } catch (geminiError) {
+                    throw new Error(
+                        `Both Ollama and Gemini API failed. Ollama: ${ollamaError.message}. Gemini: ${geminiError.message}`
+                    );
+                }
             }
 
-            return output;
-        } catch (error) {
-            console.error('AI Generation Error:', error);
-
-
-            if (error.message?.includes('Schema validation failed')) {
-                throw new Error(
-                    'AI returned invalid format. The model may need more guidance or a different approach. ' +
-                    'Original error: ' + error.message
-                );
-            }
-
-            throw error;
+            throw ollamaError;
         }
+
+        throw new Error('Failed to generate validation results');
     }
 );

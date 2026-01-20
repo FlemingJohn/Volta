@@ -47,7 +47,34 @@ export class DesignValidationService {
             return aiValidationResult;
         } catch (error) {
             console.error('Validation Flow Failed:', error);
-            throw new InternalServerErrorException(`Validation failed: ${error.message}`);
+
+            // Handle Ollama memory errors
+            if (error.message?.includes('memory layout cannot be allocated')) {
+                throw new InternalServerErrorException(
+                    'AI model out of memory. The system requires more RAM to process this request. ' +
+                    'Please try again or contact support if the issue persists.'
+                );
+            }
+
+            // Handle schema validation errors
+            if (error.message?.includes('Schema validation failed')) {
+                throw new InternalServerErrorException(
+                    'AI returned invalid response format. The model may be overloaded. ' +
+                    'Please try again in a moment.'
+                );
+            }
+
+            // Handle model not found errors
+            if (error.message?.includes('model') && error.message?.includes('not found')) {
+                throw new InternalServerErrorException(
+                    'AI model not available. Please ensure Ollama is running with the required model.'
+                );
+            }
+
+            // Generic AI error
+            throw new InternalServerErrorException(
+                `Validation failed: ${error.message || 'Unknown AI error occurred'}`
+            );
         }
     }
 }
