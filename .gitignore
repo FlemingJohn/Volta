@@ -40,3 +40,6 @@ logs/
 # Temporary files
 *.tmp
 .cache/
+
+# Project Documentation
+.Guides/

@@ -1,0 +1,34 @@
+graph LR
+    subgraph Frontend ["Frontend (Next.js 14)"]
+        UI["Design Validator Page"]
+        Input["Input Panel (Structured/Free-text/ID)"]
+        Results["Results Dashboard (MUI DataGrid)"]
+        Drawer["AI Reasoning Drawer"]
+    end
+
+    subgraph Backend ["Backend (NestJS)"]
+        API["Validation Controller"]
+        Service["Validation Service (Orchestrator)"]
+        Parser["Input Parser / DB Fetcher"]
+    end
+
+    subgraph Data ["Data Layer"]
+        DB[(MongoDB)]
+        Schema["CableDesign Schema"]
+    end
+
+    subgraph AI ["AI Reasoning Engine (Genkit)"]
+        Flows["Validation & Extraction Flows"]
+        Grounding["Standards Grounding (IEC)"]
+        LLM["Gemma 3 (Ollama)"]
+    end
+
+    Input --> API
+    API --> Service
+    Service --> Parser
+    Parser <--> DB
+    Service --> Flows
+    Flows --> Grounding
+    Flows --> LLM
+    Service --> Results
+    Service --> Drawer
