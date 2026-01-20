@@ -44,9 +44,7 @@ CRITICAL RULES:
     }
 );
 
-/**
- * Flow to validate cable design strictly against IEC 60502-1 and IEC 60228 requirements.
- */
+
 export const validateDesignFlow = ai.defineFlow(
     {
         name: 'validateDesignFlow',
