@@ -21,7 +21,7 @@ export const StructuredInputSchema = z.object({
     standard: z.string().optional(),
     voltage: z.string().optional(),
     conductorMaterial: z.string().optional(),
-    conductorClass: z.string().optional(),
+    conductorClass: z.any().transform(val => val?.toString()).optional(),
     csa: createNumericSchema(),
     insulationMaterial: z.string().optional(),
     insulationThickness: createNumericSchema(),

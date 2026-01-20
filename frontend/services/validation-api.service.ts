@@ -12,7 +12,7 @@ export const validationApi = {
                 headers: {
                     'Content-Type': 'application/json',
                 },
-                timeout: 60000,
+                timeout: 300000,
             }
         );
         return response.data;

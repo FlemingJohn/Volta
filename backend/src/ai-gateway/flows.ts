@@ -36,6 +36,10 @@ CRITICAL RULES:
 1. If a field is NOT explicitly mentioned or cannot be inferred with 95% certainty, OMIT it.
 2. For numeric fields (csa, insulationThickness), provide only the number. No units in the value.
 3. Return ONLY a pure JSON object. No preamble.`,
+            config: {
+                temperature: 0.0,
+                maxOutputTokens: 500,
+            },
             output: { schema: StructuredInputSchema },
         });
 
@@ -55,41 +59,6 @@ export const validateDesignFlow = ai.defineFlow(
         outputSchema: ValidationResponseSchema,
     },
     async (designData) => {
-        // Attempt to find standards across multiple potential locations
-        const pathsToTry = [
-            path.join(process.cwd(), '..', 'standards'),
-            path.join(process.cwd(), 'standards'),
-            path.join(__dirname, '..', '..', '..', 'standards')
-        ];
-
-        let standardsDir = '';
-        for (const p of pathsToTry) {
-            if (fs.existsSync(p)) {
-                standardsDir = p;
-                break;
-            }
-        }
-
-        let standardsContext = '';
-
-        try {
-            if (fs.existsSync(standardsDir)) {
-                const files = fs.readdirSync(standardsDir);
-                for (const file of files) {
-                    if (file.endsWith('.md')) {
-                        const content = fs.readFileSync(path.join(standardsDir, file), 'utf-8');
-                        standardsContext += `\n--- SOURCE: ${file} ---\n${content}\n`;
-                    }
-                }
-            } else {
-                console.warn(`Standards directory not found at: ${standardsDir}`);
-                standardsContext = 'No external standard documents found. Use inherent knowledge of IEC 60502-1 and IEC 60228 but prioritize literal validation where possible.';
-            }
-        } catch (error) {
-            console.error('Failed to read standards directory:', error);
-            standardsContext = 'Error reading IEC standards from disk.';
-        }
-
         const fields: string[] = [];
         if (designData.standard) fields.push(`Standard: ${designData.standard}`);
         if (designData.voltage) fields.push(`Voltage: ${designData.voltage}`);
@@ -99,42 +68,81 @@ export const validateDesignFlow = ai.defineFlow(
         if (designData.insulationMaterial) fields.push(`Insulation Material: ${designData.insulationMaterial}`);
         if (designData.insulationThickness) fields.push(`Insulation Thickness: ${designData.insulationThickness} mm`);
 
-        const { output } = await ai.generate({
-            model: gemmaModel,
-            system: `You are a Senior Cable Design Validator specializing in IEC 60502-1 and IEC 60228.
-Your mission is to audit cable designs with extreme technical rigor.
+        try {
+            const { output } = await ai.generate({
+                model: gemmaModel,
+                system: `You are a Senior Cable Design Validator specializing in IEC 60502-1 and IEC 60228.
+Audit designs with technical rigor using your knowledge of these standards.
 
-AUDIT PROTOCOL:
-- PASS: The value matches or exceeds the nominal requirement in the provided standard context.
-- WARN: The data is missing, ambiguous, or borderline, requiring human engineering review.
-- FAIL: The value is clearly below the minimum safety or construction requirement specified in the standard.
+STATUS DEFINITIONS:
+- PASS: Meets or exceeds standard requirements.
+- WARN: Data missing, ambiguous, or borderline.
+- FAIL: Below minimum safety/construction requirements.
 
-REASONING RULES:
-1. You MUST use the provided STANDARDS CONTEXT as your sole authority for "Expected" values.
-2. Cite specific Table or Clause numbers in your comments (e.g., "Table 5, IEC 60502-1").
-3. Be pedantic about insulation thickness; even 0.1mm below nominal is a FAIL.
-4. Calculate 'confidence' based on the availability and clarity of contextual data.`,
-            prompt: `
---- START STANDARDS CONTEXT ---
-${standardsContext}
---- END STANDARDS CONTEXT ---
+RULES:
+1. Use your knowledge of IEC 60502-1 and IEC 60228 standards.
+2. Cite specific Tables/Clauses when possible (e.g., "Table 5, IEC 60502-1").
+3. Insulation thickness: 0.1mm below nominal is a FAIL.
+4. Set confidence based on data completeness.
 
-AUDIT TARGET:
+CRITICAL: Return actual validation data, NOT a schema definition.
+You must validate the ACTUAL values provided above, not copy this example.`,
+                prompt: `Validate this cable design:
+
 ${fields.join('\n')}
 
-VALIDATION COMMANDS:
-1. MAP the Audit Target to the correct tables in the STANDARDS CONTEXT.
-2. ASSESS each attribute. If the Context doesn't cover a specific value, default to WARN.
-3. CONSTRUCT a detailed AI Reasoning summary that synthesizes the overall safety and compliance of the design.
+Return JSON in this EXACT structure (replace <values> with your actual validation results):
+{
+  "fields": {
+    "standard": "<copy from input>",
+    "voltage": "<copy from input>",
+    "conductorMaterial": "<copy from input>",
+    "conductorClass": "<copy from input>",
+    "csa": <number from input>,
+    "insulationMaterial": "<copy from input>",
+    "insulationThickness": <number from input>
+  },
+  "validation": [
+    {
+      "field": "<field name you are validating>",
+      "status": "<PASS or WARN or FAIL based on IEC standards>",
+      "provided": <actual value from input>,
+      "expected": <expected value per IEC standard>,
+      "comment": "<cite specific table/clause and explain>"
+    }
+  ],
+  "confidence": {
+    "overall": <0.0 to 1.0>
+  },
+  "aiReasoning": "<your detailed reasoning>"
+}
 
-OUTPUT FORMAT: Return a valid JSON object matching the ValidationResponseSchema.`,
-            output: { schema: ValidationResponseSchema },
-        });
+IMPORTANT: For 16mm² conductor, nominal insulation is 1.0mm per IEC 60502-1 Table 5. 
+If provided thickness is 0.9mm, that is 0.1mm below nominal = FAIL.`,
+                config: {
+                    temperature: 0.0,
+                    maxOutputTokens: 500,
+                },
+                output: { schema: ValidationResponseSchema },
+            });
 
-        if (!output) {
-            throw new Error('Failed to generate validation results from AI');
+            if (!output) {
+                throw new Error('Failed to generate validation results from AI');
+            }
+
+            return output;
+        } catch (error) {
+            console.error('AI Generation Error:', error);
+
+
+            if (error.message?.includes('Schema validation failed')) {
+                throw new Error(
+                    'AI returned invalid format. The model may need more guidance or a different approach. ' +
+                    'Original error: ' + error.message
+                );
+            }
+
+            throw error;
         }
-
-        return output;
     }
 );
