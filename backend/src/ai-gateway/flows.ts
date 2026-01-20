@@ -27,7 +27,9 @@ Fields to extract:
 - conductorClass (string)
 - csa (number)
 - insulationMaterial (string)
-- insulationThickness (number)`,
+- insulationThickness (number)
+
+IMPORTANT: Return a valid JSON object matching our schema. Do not use placeholders.`,
             output: { schema: StructuredInputSchema },
         });
 
@@ -39,7 +41,9 @@ Fields to extract:
     }
 );
 
-
+/**
+ * Flow to validate cable design strictly against IEC 60502-1 and IEC 60228 requirements.
+ */
 export const validateDesignFlow = ai.defineFlow(
     {
         name: 'validateDesignFlow',
@@ -60,7 +64,15 @@ export const validateDesignFlow = ai.defineFlow(
             model: gemmaModel,
             system: `You are an expert cable design engineer specializing in IEC 60502-1 and IEC 60228.
 Validate the provided design. For each field, provide PASS, WARN, or FAIL status.
-ALWAYS be critical. Nominal insulation thickness is a strict requirement.`,
+ALWAYS be critical. Nominal insulation thickness is a strict requirement.
+
+Return a JSON object with this exact structure:
+{
+  "fields": { ... },
+  "validation": [ { "field": "...", "status": "...", "provided": "...", "expected": "...", "comment": "..." } ],
+  "confidence": { "overall": 0.0-1.0 },
+  "aiReasoning": "..."
+}`,
             prompt: `Validate this cable design strictly against IEC standards:
 
 ${fields.join('\n')}
@@ -68,7 +80,9 @@ ${fields.join('\n')}
 VALIDATION RULES:
 1. IEC 60502-1 specifies nominal insulation thickness (e.g., 0.8mm or 1.0mm for 1.5-10 mm²).
 2. If a provided value is significantly below nominal, it must be a FAIL.
-3. Provide a high-level "aiReasoning" summary of your decision.`,
+3. Provide a high-level "aiReasoning" summary of your decision.
+
+IMPORTANT: Do not return a schema definition. Return only the data object.`,
             output: { schema: ValidationResponseSchema },
         });
 
