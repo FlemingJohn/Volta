@@ -1,13 +1,26 @@
 import { z } from './genkit-config';
 
+/**
+ * Preprocessor to handle AI returning strings for numeric fields.
+ * Explicitly allows strings in the schema to pass Genkit's initial validation.
+ */
+const createNumericSchema = () => z.union([z.number(), z.string()]).transform((val) => {
+    if (typeof val === 'string') {
+        const clean = val.replace(/[^0-9.]/g, '');
+        const parsed = parseFloat(clean);
+        return isNaN(parsed) ? undefined : parsed;
+    }
+    return val;
+}).optional();
+
 export const StructuredInputSchema = z.object({
     standard: z.string().optional(),
     voltage: z.string().optional(),
     conductorMaterial: z.string().optional(),
     conductorClass: z.string().optional(),
-    csa: z.number().optional(),
+    csa: createNumericSchema(),
     insulationMaterial: z.string().optional(),
-    insulationThickness: z.number().optional(),
+    insulationThickness: createNumericSchema(),
 });
 
 

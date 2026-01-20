@@ -18,7 +18,7 @@ export const extractFieldsFlow = ai.defineFlow(
 
 "${freeText}"
 
-Extract and return the following fields. If a field is not mentioned or unknown, OMIT IT from the JSON response entirely. 
+Extract and return ONLY these fields if found. 
 
 Fields to extract:
 - standard (string)
@@ -29,7 +29,10 @@ Fields to extract:
 - insulationMaterial (string)
 - insulationThickness (number)
 
-IMPORTANT: Return a valid JSON object matching our schema. Do not use placeholders.`,
+CRITICAL RULES:
+1. If a field is NOT mentioned, OMIT the key entirely from the JSON.
+2. DO NOT return strings like "Omitted", "Unknown", or "N/A" for numeric fields like csa or insulationThickness.
+3. Your response MUST be a valid JSON object matching the requested schema.`,
             output: { schema: StructuredInputSchema },
         });
 
