@@ -5,8 +5,7 @@ import theme from '@/theme/mui-theme';
 import "./globals.css";
 
 export const metadata: Metadata = {
-  title: "Volta - Cable Design Validator",
-  description: "AI-powered cable design validation against IEC standards",
+  title: "Volta - Cable Design Validator"
 };
 
 export default function RootLayout({
