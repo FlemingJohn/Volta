@@ -40,6 +40,17 @@ graph LR
     UI -->|Open| Drawer[Reasoning Drawer]
 ```
 
+### Technical Flow Breakdown
+
+The Volta validation engine operates through a multi-stage pipeline designed for precision and transparency:
+
+1.  **Ingestion Phase**: The Next.js frontend captures technical data via structured forms or raw text. This is transmitted to the NestJS backend via a type-safe POST request.
+2.  **Orchestration Phase**: The `DesignValidationService` acts as the brain. It checks for a `recordId` to fetch historical data from MongoDB. If free-text is present, it prioritizes extraction.
+3.  **AI Extraction (Genkit)**: The **Extraction Flow** uses Zod schemas to force the LLM to output a clean JSON object from messy technical descriptions.
+4.  **Standards Grounding**: Before validation, the system reads markdown-based IEC standards from the `/standards` directory. This context is injected into the AI's system prompt, ensuring the model's "reasoning" is grounded in actual engineering requirements rather than general knowledge.
+5.  **Validation & Reasoning**: The **Validation Flow** executes on Gemma 3. It performs a field-by-field audit, generating specific comments and an overall confidence score based on how well the design matches the grounded standards.
+6.  **Presentation Phase**: The final payload is mapped to a professional DataGrid, with a dedicated sidebar for engineers to inspect the AI's underlying logic.
+
 ### AI Engineering (Prompts)
 
 The system utilizes two specialized Genkit Flows with dedicated prompt engineering:
