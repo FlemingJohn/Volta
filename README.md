@@ -13,6 +13,66 @@ Volta is built as a production-ready, decoupled full-stack system. Unlike rigid 
 *   **AI Extraction Flow**: Intelligent parsing of natural language to extract core parameters (Voltage, Material, CSA, etc.) using Genkit Flows.
 *   **Transparent Engineering Results**: Field-by-field PASS/WARN/FAIL status with technical justifications.
 *   **Decision Support**: High-level AI reasoning summaries and confidence scoring for engineering review.
+### System Flow
+
+```mermaid
+graph LR
+    User([User]) -->|Input: JSON / Text / ID| UI[Next.js UI]
+    UI -->|POST /design/validate| API[Validation Controller]
+    
+    subgraph Backend [NestJS Orchestrator]
+        API --> Service[Validation Service]
+        Service -->|Check ID| DB[(MongoDB)]
+        Service -->|Input Processing| Logic{Precedence?}
+    end
+
+    subgraph Genkit [Genkit AI Flows]
+        Logic -->|Free-Text| Extract[Extraction Flow]
+        Logic -->|Structured| Validate[Validation Flow]
+        Extract -->|Extracted Data| Validate
+        Validate -->|Grounding| Standards[IEC Standards Context]
+        Validate -->|Inference| LLM[Gemma 3]
+    end
+
+    Genkit -->|AI Results| Service
+    Service -->|Response| UI
+    UI -->|Display| Table[Results Table]
+    UI -->|Open| Drawer[Reasoning Drawer]
+```
+
+### AI Engineering (Prompts)
+
+The system utilizes two specialized Genkit Flows with dedicated prompt engineering:
+
+#### 1. Extraction Flow
+> Used for converting natural language descriptions into a structured technical schema.
+```text
+Extract cable design parameters from this technical text:
+"${freeText}"
+
+Fields to extract: standard, voltage, conductorMaterial, conductorClass, csa, insulationMaterial, insulationThickness.
+CRITICAL: If a field is NOT mentioned, OMIT the key.
+```
+
+#### 2. Validation Flow
+> Acting as an expert engineer to validate design against grounded IEC standards.
+```text
+System: You are an expert cable design engineer specializing in IEC 60502-1 and IEC 60228.
+Prompt: Validate this cable design strictly against IEC standards:
+${fields}
+
+VALIDATION RULES:
+1. IEC 60502-1 specifies nominal insulation thickness.
+2. If provided value is significantly below nominal, it must be a FAIL.
+```
+
+### Validation Workflow
+
+Volta follows a strict data precedence logic to ensure the most reliable source of information is used:
+
+1.  **Record Retrieval (ID-based)**: If a `recordId` is provided, the system ignores other inputs and retrieves the "ground truth" design from MongoDB.
+2.  **Field Extraction (AI-assisted)**: If `freeTextInput` is provided, the **Extraction Flow** uses AI to parse the natural language into a structured JSON schema.
+3.  **Core Validation (Standards-Grounded)**: The final structured data is sent to the **Validation Flow**. This flow injects relevant **IEC 60502-1** and **IEC 60228** context into the prompt, allowing the AI to reason against actual standard requirements before returning the results.
 
 ## Architecture and Technology Stack
 
@@ -46,7 +106,7 @@ Volta/
 │   ├── components/     # Modular Material UI components (Input, Results, Drawer)
 │   ├── services/       # Type-safe API communication layer
 │   └── theme/          # Centralized MUI theme configuration
-└── Guides/             # Documentation, PRD, and Code Quality guidelines
+└── .Guides/             # Documentation, PRD, and Code Quality guidelines
 ```
 
 ## Getting Started
