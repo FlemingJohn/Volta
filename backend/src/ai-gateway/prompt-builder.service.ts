@@ -32,7 +32,7 @@ Always respond in valid JSON format with this structure:
     }
 
     buildValidationPrompt(designData: any): string {
-        const fields = [];
+        const fields: string[] = [];
 
         if (designData.standard) fields.push(`Standard: ${designData.standard}`);
         if (designData.voltage) fields.push(`Voltage: ${designData.voltage}`);

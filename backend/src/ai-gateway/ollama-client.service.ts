@@ -8,8 +8,8 @@ export class OllamaClientService {
     private readonly ollamaModel: string;
 
     constructor(private readonly configService: ConfigService) {
-        this.ollamaApiUrl = this.configService.get<string>('OLLAMA_API_URL');
-        this.ollamaModel = this.configService.get<string>('OLLAMA_MODEL');
+        this.ollamaApiUrl = this.configService.get<string>('OLLAMA_API_URL') || 'http://localhost:11434';
+        this.ollamaModel = this.configService.get<string>('OLLAMA_MODEL') || 'gemma';
     }
 
     async generateCompletion(
