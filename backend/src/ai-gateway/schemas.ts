@@ -18,6 +18,7 @@ const createNumericSchema = () => z.any().transform((val) => {
 }).optional();
 
 export const StructuredInputSchema = z.object({
+    isInvalidInput: z.boolean().optional(),
     standard: z.string().optional(),
     voltage: z.string().optional(),
     conductorMaterial: z.string().optional(),
@@ -43,6 +44,7 @@ export const ValidationResponseSchema = z.object({
         overall: z.number().min(0).max(1),
     }),
     aiReasoning: z.string().optional(),
+    isInvalidInput: z.boolean().optional(),
 });
 
 

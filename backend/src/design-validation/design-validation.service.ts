@@ -40,8 +40,16 @@ export class DesignValidationService {
                 const aiValidationResult = await this.aiGatewayService.validateFreeText(
                     validationRequest.freeTextInput,
                 );
+
+                if (aiValidationResult.isInvalidInput) {
+                    throw new InternalServerErrorException('Invalid input, recheck the input');
+                }
+
                 return aiValidationResult;
             } catch (error) {
+                if (error.message === 'Invalid input, recheck the input') {
+                    throw error;
+                }
                 console.error('Unified Validation Failed:', error);
                 throw new InternalServerErrorException(
                     'Validation failed. Please check your input and try again.'
@@ -52,8 +60,16 @@ export class DesignValidationService {
 
         try {
             const aiValidationResult = await this.aiGatewayService.validateDesign(designData);
+
+            if (aiValidationResult.isInvalidInput) {
+                throw new InternalServerErrorException('Invalid input, recheck the input');
+            }
+
             return aiValidationResult;
         } catch (error) {
+            if (error.message === 'Invalid input, recheck the input') {
+                throw error;
+            }
             console.error('Validation Flow Failed:', error);
 
             if (error.message?.includes('check your input')) {

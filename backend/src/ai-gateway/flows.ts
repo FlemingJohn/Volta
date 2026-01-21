@@ -11,6 +11,7 @@ Return ONLY valid JSON. No conversational text.
 
 JSON Structure:
 {
+  "isInvalidInput": boolean,
   "standard": string,
   "voltage": string,
   "conductorMaterial": string,
@@ -20,6 +21,7 @@ JSON Structure:
   "insulationThickness": number
 }
 
+Note: If the input text is completely irrelevant to cable engineering or nonsensical, set "isInvalidInput" to true.
 Fields should use technical abbreviations (e.g., "Cu", "PVC", "XLPE") where appropriate.`;
 
     const userPrompt = `Extract parameters from: "${freeText}"`;
@@ -29,9 +31,10 @@ Fields should use technical abbreviations (e.g., "Cu", "PVC", "XLPE") where appr
     }
 
     try {
-        return await callOllama(systemPrompt, userPrompt, StructuredInputSchema, 8000);
+        return await callOllama(systemPrompt, userPrompt, StructuredInputSchema, 15000);
     } catch (error: any) {
-        console.warn(`Ollama extraction failed: ${error.message}. Falling back to Gemini...`);
+        console.error(`Ollama Internal Error: ${error.message}`);
+        console.warn(`Falling back to Gemini...`);
         return await callGemini(systemPrompt, userPrompt, StructuredInputSchema);
     }
 }
@@ -50,6 +53,7 @@ Return strictly valid JSON ONLY. No markdown blocks.
 
 JSON Structure:
 {
+  "isInvalidInput": boolean,
   "fields": { [key: string]: any },
   "validation": [
     { "field": string, "status": "PASS" | "WARN" | "FAIL", "provided": any, "expected": any, "comment": string }
@@ -58,6 +62,7 @@ JSON Structure:
   "aiReasoning": string
 }
 
+Note: If the input design data is completely nonsensical or not a cable design, set "isInvalidInput" to true.
 CRITICAL: The "confidence" field MUST be an object with an "overall" property.`;
 
     const userPrompt = `STANDARDS CONTEXT:\n${standardsContext}\n\nPENDING DESIGN:\n${designFields}`;
@@ -69,14 +74,13 @@ CRITICAL: The "confidence" field MUST be an object with an "overall" property.`;
     try {
         return await callOllama(systemPrompt, userPrompt, ValidationResponseSchema, 15000);
     } catch (error: any) {
-        console.warn(`Ollama validation failed: ${error.message}. Falling back to Gemini...`);
+        console.error(`Ollama Internal Error: ${error.message}`);
+        console.warn(`Falling back to Gemini...`);
         return await callGemini(systemPrompt, userPrompt, ValidationResponseSchema);
     }
 }
 
-/**
- * Flow: Combined extraction and validation for free-text input (Halves latency).
- */
+
 export async function validateFreeTextFlow(freeText: string) {
     const standardsContext = getStandardsContext();
 
@@ -87,6 +91,7 @@ Return strictly valid JSON ONLY.
 
 JSON Structure:
 {
+  "isInvalidInput": boolean,
   "fields": { "standard": string, "voltage": string, ... },
   "validation": [
     { "field": string, "status": "PASS" | "WARN" | "FAIL", "provided": any, "expected": any, "comment": string }
@@ -95,6 +100,7 @@ JSON Structure:
   "aiReasoning": string
 }
 
+Note: If the description is completely irrelevant to cable engineering or nonsensical, set "isInvalidInput" to true.
 CRITICAL: The "confidence" field MUST be an object with an "overall" property.`;
 
     const userPrompt = `STANDARDS CONTEXT:\n${standardsContext}\n\nDESCRIPTION: "${freeText}"`;
@@ -106,7 +112,8 @@ CRITICAL: The "confidence" field MUST be an object with an "overall" property.`;
     try {
         return await callOllama(systemPrompt, userPrompt, ValidationResponseSchema, 20000);
     } catch (error: any) {
-        console.warn(`Ollama unified validation failed: ${error.message}. Falling back to Gemini...`);
+        console.error(`Ollama Internal Error: ${error.message}`);
+        console.warn(`Falling back to Gemini...`);
         return await callGemini(systemPrompt, userPrompt, ValidationResponseSchema);
     }
 }
