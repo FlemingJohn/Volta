@@ -66,7 +66,7 @@ export default function DesignValidatorPage() {
                 open={drawerOpen}
                 onClose={() => setDrawerOpen(false)}
                 aiReasoning={results?.aiReasoning}
-                confidence={results?.confidence.overall || 0}
+                confidence={results?.confidence?.overall ?? 0}
             />
         </Container>
     );

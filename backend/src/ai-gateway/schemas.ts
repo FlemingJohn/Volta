@@ -1,4 +1,4 @@
-import { z } from './genkit-config';
+import { z } from 'zod';
 
 const createNumericSchema = () => z.any().transform((val) => {
 

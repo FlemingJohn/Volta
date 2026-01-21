@@ -36,9 +36,17 @@ export class DesignValidationService {
 
 
         if (validationRequest.freeTextInput) {
-            designData = await this.aiGatewayService.extractFields(
-                validationRequest.freeTextInput,
-            );
+            try {
+                const aiValidationResult = await this.aiGatewayService.validateFreeText(
+                    validationRequest.freeTextInput,
+                );
+                return aiValidationResult;
+            } catch (error) {
+                console.error('Unified Validation Failed:', error);
+                throw new InternalServerErrorException(
+                    'Validation failed. Please check your input and try again.'
+                );
+            }
         }
 
 
@@ -48,32 +56,14 @@ export class DesignValidationService {
         } catch (error) {
             console.error('Validation Flow Failed:', error);
 
-            // Handle Ollama memory errors
-            if (error.message?.includes('memory layout cannot be allocated')) {
+            if (error.message?.includes('check your input')) {
                 throw new InternalServerErrorException(
-                    'AI model out of memory. The system requires more RAM to process this request. ' +
-                    'Please try again or contact support if the issue persists.'
+                    'Validation failed. Please check your input and try again. If the issue persists, contact support.'
                 );
             }
 
-            // Handle schema validation errors
-            if (error.message?.includes('Schema validation failed')) {
-                throw new InternalServerErrorException(
-                    'AI returned invalid response format. The model may be overloaded. ' +
-                    'Please try again in a moment.'
-                );
-            }
-
-            // Handle model not found errors
-            if (error.message?.includes('model') && error.message?.includes('not found')) {
-                throw new InternalServerErrorException(
-                    'AI model not available. Please ensure Ollama is running with the required model.'
-                );
-            }
-
-            // Generic AI error
             throw new InternalServerErrorException(
-                `Validation failed: ${error.message || 'Unknown AI error occurred'}`
+                'Validation service temporarily unavailable. Please try again.'
             );
         }
     }
