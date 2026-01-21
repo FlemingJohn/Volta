@@ -10,6 +10,7 @@ import {
     LinearProgress,
 } from '@mui/material';
 import CloseIcon from '@mui/icons-material/Close';
+import ReactMarkdown from 'react-markdown';
 
 interface ReasoningDrawerProps {
     open: boolean;
@@ -32,11 +33,23 @@ export default function ReasoningDrawer({
 
     return (
         <Drawer anchor="right" open={open} onClose={onClose}>
-            <Box sx={{ width: 400, p: 3 }}>
+            <Box sx={{ width: 450, p: 3 }}>
                 <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 2 }}>
                     <Typography variant="h6" sx={{ fontWeight: 600, color: '#2E7D32' }}>
                         AI Reasoning
                     </Typography>
+                    <Box sx={{
+                        px: 1,
+                        py: 0.5,
+                        backgroundColor: '#E8F5E9',
+                        color: '#2E7D32',
+                        borderRadius: 1,
+                        fontSize: '0.7rem',
+                        fontWeight: 700,
+                        border: '1px solid #C8E6C9'
+                    }}>
+                        IEC STANDARDS GROUNDED
+                    </Box>
                     <IconButton onClick={onClose} size="small">
                         <CloseIcon />
                     </IconButton>
@@ -69,20 +82,23 @@ export default function ReasoningDrawer({
                     </Box>
                 </Box>
 
-                <Box>
-                    <Typography variant="subtitle2" sx={{ mb: 2, fontWeight: 600 }}>
-                        Detailed Explanation
+                <Box sx={{
+                    '& h1, & h2, & h3': { color: '#2E7D32', mt: 2, mb: 1, fontSize: '1.1rem' },
+                    '& p': { color: '#555', mb: 1.5, fontSize: '0.9rem', lineHeight: 1.6 },
+                    '& ul, & ol': { pl: 2, mb: 2, color: '#555' },
+                    '& li': { mb: 0.5, fontSize: '0.9rem' },
+                    '& strong': { color: '#333' }
+                }}>
+                    <Typography variant="subtitle2" sx={{ mb: 2, fontWeight: 700, color: '#000', textTransform: 'uppercase', letterSpacing: '0.05em' }}>
+                        Solution Based on IEC Standards
                     </Typography>
-                    <Typography
-                        variant="body2"
-                        sx={{
-                            whiteSpace: 'pre-wrap',
-                            color: '#666',
-                            lineHeight: 1.6,
-                        }}
-                    >
-                        {aiReasoning || 'No reasoning available'}
-                    </Typography>
+                    {aiReasoning ? (
+                        <ReactMarkdown>{aiReasoning}</ReactMarkdown>
+                    ) : (
+                        <Typography variant="body2" sx={{ color: '#999', fontStyle: 'italic' }}>
+                            No technical justification provided.
+                        </Typography>
+                    )}
                 </Box>
             </Box>
         </Drawer>

@@ -49,7 +49,7 @@ export async function validateDesignFlow(designData: any) {
         .join('\n');
 
     const systemPrompt = `You are an expert Cable Design Validator for IEC 60502-1 and IEC 60228.
-Use the provided standards context to validate cable designs.
+Use the provided standards context ONLY to validate cable designs.
 Return strictly valid JSON ONLY. No markdown blocks.
 
 JSON Structure:
@@ -63,6 +63,7 @@ JSON Structure:
   "aiReasoning": string
 }
 
+CRITICAL: Your "aiReasoning" MUST explicitly cite the specific IEC standard and threshold values from the provided context (e.g., "Per IEC 60502-1 Table 15..."). 
 Note: If the input design data is completely nonsensical or not a cable design, set "isInvalidInput" to true.
 CRITICAL: The "confidence" field MUST be an object with an "overall" property.`;
 
@@ -88,7 +89,7 @@ export async function validateFreeTextFlow(freeText: string) {
 
     const systemPrompt = `You are a Cable Engineering Expert.
 1. Extract parameters from the description.
-2. Validate them against IEC 60502-1 and IEC 60228 using the context.
+2. Validate them against IEC 60502-1 and IEC 60228 strictly using the provided context.
 Return strictly valid JSON ONLY. 
 
 JSON Structure:
@@ -102,6 +103,7 @@ JSON Structure:
   "aiReasoning": string
 }
 
+CRITICAL: In your "aiReasoning", you MUST cite the specific table or clause from the IEC standards context used for validation.
 Note: If the description is completely irrelevant to cable engineering or nonsensical, set "isInvalidInput" to true.
 CRITICAL: The "confidence" field MUST be an object with an "overall" property.`;
 
