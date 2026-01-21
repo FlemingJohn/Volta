@@ -301,6 +301,18 @@ Volta/
 3.  **Validate**: Click "Validate Design" to trigger the Genkit validation flow.
 4.  **Analyze**: View the results in the table and open the **AI Reasoning** drawer for detailed engineering justification.
 
+## Limitations and Solutions
+
+The Volta architecture acknowledged several technical constraints during development and implemented specific architectural solutions to mitigate them:
+
+| Limitation | Technical Context | Solution |
+| :--- | :--- | :--- |
+| **Local Model Constraints** | Gemma 3:1b has limited context length and can produce false results if overloaded. It also requires significant local compute (RAM/VRAM). | **Hybrid AI Strategy**: The system implements a timeout-based failover. If local inference hangs or exceeds resource limits, it automatically pivots to Gemini 1.5 Pro/Flash. |
+| **Cloud Privacy Concerns** | Standard cloud APIs (like Google Gemini) may use input data for model training, raising industrial privacy concerns. | **Enterprise Roadmap**: For production environments requiring strict privacy, the architecture is designed to switch to **Google Vertex AI**, which guarantees that user data is not used for training. |
+| **Outdated Knowledge Base** | LLMs have limited general knowledge and a fixed "knowledge cutoff" (e.g., Gemma might report an incorrect current date). | **Standards Grounding (RAG)**: The system utilizes external knowledge by dynamically reading from the `/standards` directory, ensuring the AI validates against the latest industrial guidelines rather than static training data. |
+
+---
+
 ## Disclaimer
 
 This system is an AI-assisted validation tool. While it uses technical standard contexts for reasoning, validation results should be used as decision-support tools and do not replace professional engineering certification for safety-critical hardware.
