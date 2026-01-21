@@ -31,6 +31,11 @@ export async function callOllama(system: string, prompt: string, schema: ZodSche
         }
     } catch (error: any) {
         clearTimeout(timeout);
+
+        if (error.name === 'CanceledError' || error.message?.includes('canceled')) {
+            throw new Error(`Ollama Error: Request canceled/timed out. This is likely due to local hardware memory (RAM/VRAM) or performance constraints.`);
+        }
+
         if (axios.isAxiosError(error)) {
             const status = error.response?.status;
             const msg = error.response?.data?.error || error.message;

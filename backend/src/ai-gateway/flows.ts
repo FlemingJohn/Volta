@@ -26,16 +26,17 @@ Fields should use technical abbreviations (e.g., "Cu", "PVC", "XLPE") where appr
 
     const userPrompt = `Extract parameters from: "${freeText}"`;
 
-    if (!getUseFallback()) {
-        return await callGemini(systemPrompt, userPrompt, StructuredInputSchema);
-    }
-
     try {
         return await callOllama(systemPrompt, userPrompt, StructuredInputSchema, 15000);
     } catch (error: any) {
         console.error(`Ollama Internal Error: ${error.message}`);
-        console.warn(`Falling back to Gemini...`);
-        return await callGemini(systemPrompt, userPrompt, StructuredInputSchema);
+
+        if (getUseFallback()) {
+            console.warn(`Falling back to Gemini...`);
+            return await callGemini(systemPrompt, userPrompt, StructuredInputSchema);
+        }
+
+        throw new Error(`Ollama failed and Gemini fallback is disabled: ${error.message}`);
     }
 }
 
@@ -67,16 +68,17 @@ CRITICAL: The "confidence" field MUST be an object with an "overall" property.`;
 
     const userPrompt = `STANDARDS CONTEXT:\n${standardsContext}\n\nPENDING DESIGN:\n${designFields}`;
 
-    if (!getUseFallback()) {
-        return await callGemini(systemPrompt, userPrompt, ValidationResponseSchema);
-    }
-
     try {
         return await callOllama(systemPrompt, userPrompt, ValidationResponseSchema, 15000);
     } catch (error: any) {
         console.error(`Ollama Internal Error: ${error.message}`);
-        console.warn(`Falling back to Gemini...`);
-        return await callGemini(systemPrompt, userPrompt, ValidationResponseSchema);
+
+        if (getUseFallback()) {
+            console.warn(`Falling back to Gemini...`);
+            return await callGemini(systemPrompt, userPrompt, ValidationResponseSchema);
+        }
+
+        throw new Error(`Ollama failed and Gemini fallback is disabled: ${error.message}`);
     }
 }
 
@@ -105,15 +107,16 @@ CRITICAL: The "confidence" field MUST be an object with an "overall" property.`;
 
     const userPrompt = `STANDARDS CONTEXT:\n${standardsContext}\n\nDESCRIPTION: "${freeText}"`;
 
-    if (!getUseFallback()) {
-        return await callGemini(systemPrompt, userPrompt, ValidationResponseSchema);
-    }
-
     try {
         return await callOllama(systemPrompt, userPrompt, ValidationResponseSchema, 20000);
     } catch (error: any) {
         console.error(`Ollama Internal Error: ${error.message}`);
-        console.warn(`Falling back to Gemini...`);
-        return await callGemini(systemPrompt, userPrompt, ValidationResponseSchema);
+
+        if (getUseFallback()) {
+            console.warn(`Falling back to Gemini...`);
+            return await callGemini(systemPrompt, userPrompt, ValidationResponseSchema);
+        }
+
+        throw new Error(`Ollama failed and Gemini fallback is disabled: ${error.message}`);
     }
 }
