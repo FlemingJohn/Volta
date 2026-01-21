@@ -1,0 +1,21 @@
+graph TD
+    User([User]) -->|Input| UI[Next.js UI]
+    UI -->|API Request| API[NestJS Backend]
+    
+    subgraph Backend [AI Gateway Orchestration]
+        API --> Service[Design Validation Service]
+        Service --> Flows[AI Flows]
+        
+        subgraph Hybrid_Pipeline [Execution Pipeline]
+            Flows -->|Try First| Ollama[Ollama: Gemma 3]
+            Ollama -->|Timeout/Error| Fallback{Fallback Enabled?}
+            Fallback -- Yes --> Gemini[Google Gemini 1.5]
+            Fallback -- No --> Error[Resource Error]
+        end
+        
+        Standards[IEC Standards MD] --> Flows
+    end
+
+    Hybrid_Pipeline -->|Zod Validated JSON| UI
+    UI -->|Render| DataGrid[Results Table]
+    UI -->|Open| Drawer[Markdown Reasoning View]

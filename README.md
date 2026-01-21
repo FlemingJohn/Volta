@@ -1,117 +1,197 @@
-# Volta: AI-Driven Cable Design Validation System
+# Volta: Hybrid AI Cable Design Validation System
 
-Volta is a sophisticated validation platform designed to ensure low-voltage cable designs comply with international engineering standards, specifically **IEC 60502-1** and **IEC 60228**. Leveraging **Firebase Genkit** and the **Gemma 3:1B** model, the system provides intelligent, reasoning-based validation for both structured technical inputs and natural language descriptions.
+Volta is a sophisticated validation platform designed to ensure low-voltage cable designs comply with international engineering standards, specifically **IEC 60502-1** and **IEC 60228**. Volta utilizes a unique **Hybrid AI Gateway** that prioritizes local processing via **Ollama** with a seamless failover to **Google Gemini**, providing intelligent, standards-grounded validation even in resource-constrained environments.
 
 ## System Overview
 
-Volta is built as a production-ready, decoupled full-stack system. Unlike rigid rule-based engines, Volta utilizes a **context-based reasoning engine** where an AI model interprets design parameters against real-world technical standards.
+Volta is built as a production-ready, decoupled full-stack system. Unlike rigid rule-based engines, Volta utilizes a **context-based reasoning engine** where a hybrid AI infrastructure interprets design parameters against real-world technical standards.
 
 ### Core Philosophy: Reasoning-First Validation
 
-*   **Zero Hardcoding**: IEC validation logic is intentionally performed by AI. No IEC rules, lookup tables, or threshold values are hardcoded in the application logic or stored in databases.
-*   **Standards Contextualization**: The system dynamically reads markdown-based IEC standards (IEC 60502-1, IEC 60228) from the `/standards` directory. This context is injected into the AI's short-term memory (prompt context) during validation.
-*   **Transparent Engineering**: By reasoning against actual standards, the AI provides specific citations and engineering justifications for every PASS/WARN/FAIL decision.
+*   **Hybrid AI Strategy**: Local-first processing using Ollama (Gemma 3) for privacy and speed, with cloud fallback (Gemini 1.5) for reliability and enhanced reasoning.
+*   **Standards Contextualization**: The system dynamically reads markdown-based IEC standards from the `/standards` directory and injects them into the AI's context.
+*   **Transparent Engineering**: The AI doesn't just pass/fail; it provides a **Solution Based on IEC Standards** by citing specific tables and clauses.
+*   **Audit-Ready Transparency**: A dedicated **Reasoning Drawer** with Markdown support renders detailed technical justifications.
 
 ### Key Capabilities
 
+*   **Hybrid AI Gateway**: Automatic local-to-cloud fallback with resource-aware error logging (RAM/VRAM monitoring).
 *   **Standards-Context Validation**: Real-time checking against IEC 60502-1 (Construction) and IEC 60228 (Conductors).
-*   **Multi-Input Support**: Accept structured JSON, raw technical descriptions (Free-text), or fetch existing records by **Record ID**.
-*   **AI Extraction Flow**: Intelligent parsing of natural language to extract core parameters (Voltage, Material, CSA, etc.) using Genkit Flows.
-*   **Transparent Engineering Results**: Field-by-field PASS/WARN/FAIL status with technical justifications.
-*   **Decision Support**: High-level AI reasoning summaries and confidence scoring for engineering review.
-### System Flow
+*   **Intelligent Extraction**: Natural language parsing that detects irrelevant/nonsensical input and returns specific "Invalid Input" errors.
+*   **Markdown Reasoning Engine**: Structured technical feedback with bold citations, lists, and confidence scoring.
+*   **Multi-Input Support**: Accept structured JSON, raw technical descriptions, or existing MongoDB records.
+
+### System Flow (Hybrid Architecture)
 
 ```mermaid
-graph LR
-    User([User]) -->|Input: JSON / Text / ID| UI[Next.js UI]
-    UI -->|POST /design/validate| API[Validation Controller]
+graph TD
+    User([User]) -->|Input| UI[Next.js UI]
+    UI -->|API Request| API[NestJS Backend]
     
-    subgraph Backend [NestJS Orchestrator]
-        API --> Service[Validation Service]
-        Service -->|Check ID| DB[(MongoDB)]
-        Service -->|Input Processing| Logic{Precedence?}
+    subgraph Backend [AI Gateway Orchestration]
+        API --> Service[Design Validation Service]
+        Service --> Flows[AI Flows]
+        
+        subgraph Hybrid_Pipeline [Execution Pipeline]
+            Flows -->|Try First| Ollama[Ollama: Gemma 3]
+            Ollama -->|Timeout/Error| Fallback{Fallback Enabled?}
+            Fallback -- Yes --> Gemini[Google Gemini 1.5]
+            Fallback -- No --> Error[Resource Error]
+        end
+        
+        Standards[IEC Standards MD] --> Flows
     end
 
-    subgraph Genkit [Genkit AI Flows]
-        Logic -->|Free-Text| Extract[Extraction Flow]
-        Logic -->|Structured| Validate[Validation Flow]
-        Extract -->|Extracted Data| Validate
-        Validate -->|Contextualization| Standards[IEC Standards Context]
-        Validate -->|Inference| LLM[Gemma 3]
-    end
-
-    Genkit -->|AI Results| Service
-    Service -->|Response| UI
-    UI -->|Display| Table[Results Table]
-    UI -->|Open| Drawer[Reasoning Drawer]
+    Hybrid_Pipeline -->|Zod Validated JSON| UI
+    UI -->|Render| DataGrid[Results Table]
+    UI -->|Open| Drawer[Markdown Reasoning View]
 ```
+
+## AI Validation Methodology
+
+Volta moves beyond simple "if-else" checking by treating validation as a high-stakes technical audit. The system methodology follows three core principles:
+
+1.  **Grounding in Reality**: Every validation request is paired with the actual text of IEC 60502-1 and IEC 60228. The AI is not allowed to rely on its "common knowledge"; it must verify every parameter against the provided technical context.
+2.  **Contract-Driven Inference**: We use Zod schemas to ensure that the AI's "thoughts" are translated into a strictly typed JSON structure. If the AI's reasoning doesn't fit the expected engineering format, the system rejects it before it reaches the end user.
+3.  **The "Safety Margin" Warning System**: If a design parameter is technically compliant but near the minimum threshold, the AI identifies it as a `WARN` instead of a `PASS`, explaining the risk (e.g., thermal performance or mechanical durability).
+
+## Validation Toolkit
+
+To achieve industrial-grade reliability, Volta integrates the following tools:
+
+- **Zod**: Forces the AI to output valid, structured engineering data. It acts as the "contract" between the LLM and the application logic.
+- **Axios with AbortControllers**: Manages local Ollama calls with strict timeouts. If a local model hangs due to resource constraints, the system detects the cancellation and pivots to fallback providers.
+- **Standards Context Reader**: A specialized utility in `backend/src/ai-gateway/context.ts` that dynamically assembles relevant IEC tables into a machine-readable prompt extension.
+
+## Core System Prompts
+
+The system's accuracy is driven by highly specialized "Expert Personas."
+
+### The Engineering Auditor Prompt
+> Used in `validateDesignFlow` and `validateFreeTextFlow`.
+
+```text
+SYSTEM: You are an expert Cable Design Validator specializing in IEC 60502-1 and IEC 60228.
+COMMANDS:
+- Use the provided STANDARDS CONTEXT ONLY for validation.
+- Cite specific Table or Clause numbers for every decision.
+- MAP provided values (e.g., "10sqmm") to nominal requirements (e.g., "Table 15 specifies 1.0mm insulation").
+- Set "isInvalidInput" to true if the text is not related to cable engineering.
+CRITICAL: Return strictly valid JSON. Your "aiReasoning" must be structured Markdown.
+```
+
+## How AI Reasoning Works
+
+The **Reasoning Engine** is designed to provide "Explainable AI" for engineers. It follows a four-stage process:
+
+### 1. The Expert Monologue (Internal Audit)
+When you submit a design, the AI performs an internal monologue. It compares your input (e.g., "CSA: 10mm²") with the standards table (e.g., "Minimum insulation for 10mm² is 1.0mm"). 
+
+### 2. Standards Grounding
+The engine fetches the raw Markdown from the `/standards` folder. This ensures the AI has "perfect memory" of technical tables that are too large for traditional hardcoding.
+
+### 3. Dual-Layer Reporting
+- **Field-Level Comments**: The AI generates a `comment` for every single cell in the results table. These are concise technical notes (e.g., *"0.9mm is above the 0.8mm nominal minimum"*).
+- **Global Reasoning**: It drafts a comprehensive "Solution Based on IEC Standards" summary. This is a multi-paragraph technical justification shown in the slide-out drawer.
+
+### 4. Confidence Scoring
+Based on the clarity of the input and the match to the standards, the AI calculates a `confidence.overall` score (0.0 to 1.0). This helps human engineers decide if they need to double-check the AI's conclusions.
+
+---
 
 ### Technical Flow Breakdown
 
-The Volta validation engine operates through a multi-stage pipeline designed for precision and transparency:
-
-1.  **Ingestion Phase**: The Next.js frontend captures technical data via structured forms or raw text. This is transmitted to the NestJS backend via a type-safe POST request.
-2.  **Orchestration Phase**: The `DesignValidationService` acts as the brain. It checks for a `recordId` to fetch historical data from MongoDB. If free-text is present, it prioritizes extraction.
-3.  **AI Extraction (Genkit)**: The **Extraction Flow** uses Zod schemas to force the LLM to output a clean JSON object from messy technical descriptions.
-4.  **Standards Contextualization**: Before validation, the system reads markdown-based IEC standards from the `/standards` directory. This context is injected into the AI's system prompt, ensuring the model's "reasoning" is based on actual engineering requirements provided in the context rather than general knowledge.
-5.  **Validation & Reasoning**: The **Validation Flow** executes on Gemma 3. It performs a field-by-field audit, generating specific comments and an overall confidence score based on how well the design matches the contextual standards.
-6.  **Presentation Phase**: The final payload is mapped to a professional DataGrid, with a dedicated sidebar for engineers to inspect the AI's underlying logic.
-
-### AI Engineering (Prompts)
-
-The system utilizes two specialized Genkit Flows with dedicated prompt engineering:
-
-#### 1. Extraction Flow
-> Used for converting natural language descriptions into a structured technical schema.
-```text
-Extract cable design parameters from this technical text:
-"${freeText}"
-
-Fields to extract: standard, voltage, conductorMaterial, conductorClass, csa, insulationMaterial, insulationThickness.
-CRITICAL: If a field is NOT mentioned, OMIT the key.
-```
-
-#### 2. Validation Flow
-> Acting as an expert engineer to validate design against dynamic standards context.
-```text
-System: You are a Senior Cable Design Validator specializing in IEC 60502-1 and IEC 60228.
-Prompt: 
---- START STANDARDS CONTEXT ---
-${standardsContext} (Loaded dynamically from /standards/*.md)
---- END STANDARDS CONTEXT ---
-
-AUDIT TARGET: ${fields}
-
-VALIDATION COMMANDS:
-1. MAP the Audit Target to the correct tables in the STANDARDS CONTEXT.
-2. Cite specific Table or Clause numbers from the context.
-3. Be pedantic; even 0.1mm below nominal is a FAIL.
-```
-
-### Validation Workflow
-
-Volta follows a strict data precedence logic to ensure the most reliable source of information is used:
-
-1.  **Record Retrieval (ID-based)**: If a `recordId` is provided, the system ignores other inputs and retrieves the "ground truth" design from MongoDB.
-2.  **Field Extraction (AI-assisted)**: If `freeTextInput` is provided, the **Extraction Flow** uses AI to parse the natural language into a structured JSON schema.
-3.  **Core Validation (Standards-Grounded)**: The final structured data is sent to the **Validation Flow**. This flow injects relevant **IEC 60502-1** and **IEC 60228** context into the prompt, allowing the AI to reason against actual standard requirements before returning the results.
+1.  **Ingestion Phase**: The Next.js frontend captures technical data. Nonsensical input is flagged at the AI layer with specialized error messages.
+2.  **Hybrid Orchestration**: The `DesignValidationService` attempts local inference first. If Ollama times out (typically due to local RAM/VRAM constraints), the system automatically initiates a fallback to Gemini if configured.
+3.  **Standards Grounding**: Technical context from `/standards` is injected into every AI prompt, forcing the model to cite specific IEC clauses (e.g., "Per IEC 60502-1 Table 15...").
+4.  **Presentation Phase**: Results are mapped to a professional DataGrid with automatic text wrapping for long comments. A slide-out drawer provides the full technical justification in structured Markdown.
 
 ## Architecture and Technology Stack
 
 ### Backend (NestJS)
-*   **Orchestration**: NestJS with a modular service-based architecture.
-*   **Data Persistence**: **MongoDB** (via Mongoose) for cable design records.
-*   **AI Gateway**: **Firebase Genkit** providing type-safe AI flows and Zod-based contract enforcement.
+*   **Orchestration**: NestJS with dynamic, runtime environment variable loading.
+*   **AI Providers**: **Ollama** (Local-Primary) and **Google Gemini** (Cloud-Fallback).
+*   **Validation**: **Zod** for AI contract enforcement and **class-validator** for DTO integrity.
+*   **Persistence**: **MongoDB** for historical record management.
 
 ### Frontend (Next.js)
-*   **Framework**: Next.js 14 (App Router).
-*   **Component Library**: Material UI (MUI v6) with a premium engineering aesthetic.
-*   **Data Management**: MUI DataGrid for professional results management.
+*   **Framework**: Next.js 14+ (App Router).
+*   **UI/UX**: Material UI (MUI v6) with a premium "Engineering" aesthetic.
+*   **Reasoning Display**: `react-markdown` for rendering structured technical audits.
+*   **Data Handling**: MUI DataGrid with dynamic row heights and text wrapping.
 
 ### AI Reasoning Engine
-*   **Host**: Ollama (Local).
-*   **Model**: Gemma 3:1B (815MB variant).
-*   **Contextualization**: Standards-based prompting for authoritative validation decisions.
+*   **Primary (Local)**: Ollama - Gemma 3 (1B/4B).
+*   **Secondary (Cloud)**: Google Generative AI - Gemini 1.5 Flash.
+*   **Grounding**: Standards-based prompting for authoritative decisions.
+## Ollama Installation & Verification
+
+Volta requires **Ollama** to serve the primary (local) AI models.
+
+### 1. Installation
+1.  Download Ollama from [ollama.com](https://ollama.com).
+2.  Follow the installation wizard for Windows.
+3.  Ensure the Ollama icon is visible in your system tray.
+
+### 2. CMD Verification
+Open your Command Prompt (CMD) or PowerShell and run the following to verify the installation:
+
+```bash
+# Check version
+ollama --version
+
+# Pull the primary model
+ollama pull gemma3:1b
+
+# Verify running models
+ollama list
+```
+
+---
+
+## Validation Test Matrix
+
+Use these specialized test cases to verify the system's grounding in IEC standards. These can be run directly via the UI or by sending payloads to the API.
+
+### Test Case 1: Fully Correct Design
+*   **Input**: `IEC 60502-1, 0.6/1 kV, Cu, Class 2, 10 mm², PVC, insulation 1.0 mm`
+*   **Expected AI Output**:
+    *   Insulation thickness → **PASS**
+    *   CSA → **PASS**
+    *   Material/class → **PASS**
+    *   **Confidence**: High (≥ 0.85)
+
+### Test Case 2: Borderline / Warning Case
+*   **Input**: `IEC 60502-1 cable, 16 sqmm Cu Class 2, PVC insulation 0.9 mm`
+*   **Expected Output**:
+    *   Insulation thickness → **WARN**
+    *   **Reasoning**: AI explains that 0.9mm is technically compliant but at the nominal limit with zero safety margin per IEC 60502-1 Table 15.
+    *   **Confidence**: Medium (~0.6 - 0.7)
+
+### Test Case 3: Clearly Invalid Design
+*   **Input**: `IEC 60502-1, 0.6/1 kV, Cu, Class 2, 10 mm², PVC, insulation 0.5 mm`
+*   **Expected Output**:
+    *   Insulation thickness → **FAIL**
+    *   **Reasoning**: Explicitly mentions that 0.5mm is below the 0.8mm nominal minimum for this voltage class.
+    *   **Confidence**: High (In identifying the failure)
+
+### Test Case 4: Ambiguous Input
+*   **Input**: `10 sqmm copper cable with PVC insulation`
+*   **Expected Output**:
+    *   Standard (IEC 60502-1) → **WARN** (Missing standard assumed)
+    *   Voltage (0.6/1kV) → **WARN** (Voltage unspecified)
+    *   **Reasoning**: AI clearly states that while parameters are extracted, the lack of explicit context forces assumptions.
+
+---
+
+## Architectural Guardrails (Red Flags)
+
+This system follows a strict **Clean AI Architecture**. Developers must avoid these "Red Flags" that compromise system integrity:
+
+*   🚩 **Direct AI Calls in Controllers**: Controllers must only handle routing and DTO validation. All AI orchestration belongs in the `AIGatewayService`.
+*   🚩 **Missing DTO Validation**: Every incoming request must be validated using `class-validator` and `ValidationPipe`.
+*   🚩 **Hardcoded IEC Rules**: **CRITICAL**: IEC validation logic is performed EXCLUSIVELY by the AI reasoning engine. No IEC tables, thresholds, or lookup logic should be hardcoded in the codebase or stored in SQL/JSON databases.
+*   🚩 **Ignoring Zod Contracts**: Every AI response must be parsed through a Zod schema to prevent runtime "unstructured data" crashes.
 
 ## Project Structure
 
@@ -119,7 +199,7 @@ Volta follows a strict data precedence logic to ensure the most reliable source 
 Volta/
 ├── backend/            # NestJS Application
 │   ├── src/
-│   │   ├── ai-gateway/     # Genkit flows, Zod schemas, and AI orchestration
+│   │   ├── ai-gateway/     # AI flows, Zod schemas, and provider callers
 │   │   ├── design-validation/ # Core domain logic and MongoDB schemas
 │   │   └── main.ts         # Server entry point
 │   ├── standards/      # Technical IEC standards used for AI grounding
@@ -128,24 +208,10 @@ Volta/
 │   ├── components/     # Modular Material UI components (Input, Results, Drawer)
 │   ├── services/       # Type-safe API communication layer
 │   └── theme/          # Centralized MUI theme configuration
-└── .Guides/             # Documentation, PRD, and Code Quality guidelines
+└── architecture.mmd     # Standalone architecture diagram
 ```
 
 ## Getting Started
-
-### Prerequisites
-
-*   **Node.js**: v18 or higher.
-*   **MongoDB**: Local instance running on port 27017.
-*   **Ollama**: Installed and running locally.
-
-### AI Model Preparation
-
-1.  Start the Ollama service.
-2.  Install the validation model:
-    ```bash
-    ollama pull gemma3:1b
-    ```
 
 ### Backend Installation
 
