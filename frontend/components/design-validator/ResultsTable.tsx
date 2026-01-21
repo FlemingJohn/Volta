@@ -42,7 +42,20 @@ export default function ResultsTable({ validations }: ResultsTableProps) {
             field: 'comment',
             headerName: 'Comment',
             flex: 2,
-            minWidth: 250,
+            minWidth: 300,
+            renderCell: (params) => (
+                <Box sx={{
+                    whiteSpace: 'normal',
+                    lineHeight: '1.5',
+                    py: 1,
+                    display: 'flex',
+                    alignItems: 'center',
+                    height: '100%',
+                    width: '100%'
+                }}>
+                    {params.value}
+                </Box>
+            ),
         },
     ];
 
@@ -57,6 +70,8 @@ export default function ResultsTable({ validations }: ResultsTableProps) {
                 rows={rows}
                 columns={columns}
                 autoHeight
+                getRowHeight={() => 'auto'}
+                getEstimatedRowHeight={() => 70}
                 disableRowSelectionOnClick
                 sx={{
                     border: '1px solid #E8E8E8',
@@ -64,6 +79,9 @@ export default function ResultsTable({ validations }: ResultsTableProps) {
                     '& .MuiDataGrid-columnHeaders': {
                         backgroundColor: '#F5F5F5',
                         fontWeight: 600,
+                    },
+                    '& .MuiDataGrid-cell': {
+                        borderBottom: '1px solid #F0F0F0',
                     },
                 }}
                 initialState={{
