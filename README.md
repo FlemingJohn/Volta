@@ -49,11 +49,13 @@ graph TD
 
 ## AI Validation Methodology
 
-Volta moves beyond simple "if-else" checking by treating validation as a high-stakes technical audit. The system methodology follows three core principles:
+Volta moves beyond simple "if-else" checking by treating validation as a high-stakes technical audit. The system methodology follows four core principles:
 
 1.  **Grounding in Reality**: Every validation request is paired with the actual text of IEC 60502-1 and IEC 60228. The AI is not allowed to rely on its "common knowledge"; it must verify every parameter against the provided technical context.
-2.  **Contract-Driven Inference**: We use Zod schemas to ensure that the AI's "thoughts" are translated into a strictly typed JSON structure. If the AI's reasoning doesn't fit the expected engineering format, the system rejects it before it reaches the end user.
-3.  **The "Safety Margin" Warning System**: If a design parameter is technically compliant but near the minimum threshold, the AI identifies it as a `WARN` instead of a `PASS`, explaining the risk (e.g., thermal performance or mechanical durability).
+2.  **Semantic Engineering Logic**: The AI reasoning engine understands various technical abbreviations (sqmm, mm²) and maps them contextually to standard engineering units, allowing expert-level semantic analysis of technical text without hardcoded conversion maps.
+3.  **No Hardcoded Rules**: **CRITICAL**: The system intentionally contains zero hardcoded IEC rules, lookup tables, or threshold values. All validation logic and engineering comparisons are performed by the AI reasoning against the provided standards context.
+4.  **Contract-Driven Inference**: We use Zod schemas to ensure that the AI's "thoughts" are translated into a strictly typed JSON structure. If the AI's reasoning doesn't fit the expected engineering format, the system rejects it before it reaches the end user.
+5.  **The "Safety Margin" Warning System**: If a design parameter is technically compliant but near the minimum threshold, the AI identifies it as a `WARN` instead of a `PASS`, explaining the risk (e.g., thermal performance or mechanical durability).
 
 ## Validation Toolkit
 
@@ -63,18 +65,35 @@ To achieve industrial-grade reliability, Volta integrates the following tools:
 - **Axios with AbortControllers**: Manages local Ollama calls with strict timeouts. If a local model hangs due to resource constraints, the system detects the cancellation and pivots to fallback providers.
 - **Standards Context Reader**: A specialized utility in `backend/src/ai-gateway/context.ts` that dynamically assembles relevant IEC tables into a machine-readable prompt extension.
 
+### 4. Confidence Scoring (Calculation Logic)
+The `confidence.overall` score (0.0 to 1.0) is not a random number; it is calculated by the AI based on three weighted factors:
+1.  **Data Completeness (40%)**: Does the input specify the standard, voltage, material, and dimensions? Missing critical fields lower the score.
+2.  **Standards Grounding (40%)**: How clearly does the input match the provided IEC tables? A direct match (e.g., 10mm² found in Table 15) increases confidence.
+3.  **Semantic Clarity (20%)**: Is the input ambiguous? Use of non-standard units or contradictory terms (e.g., "XLPE PVC cable") reduces confidence.
+
+## Validation Signal Logic
+
+The system uses three distinct signals to communicate design health:
+
+- ✅ **PASS**: The parameter matches or exceeds the nominal requirements defined in the IEC standards context with a safe margin.
+- ⚠️ **WARN**: 
+    - **Boundary Case**: The parameter meets the requirement but has zero or minimal safety margin.
+    - **Missing Data**: A critical field (like Voltage or Standard) was missing and the AI had to make a "best-guess" assumption based on common engineering practice.
+- ❌ **FAIL**: The parameter strictly violates the minimum/maximum thresholds defined in the standards context.
+
+---
+
 ## Core System Prompts
 
-Volta's precision is driven by three specialized AI flows, each with its own rigorous system prompt.
+Volta's precision is driven by three specialized AI flows, optimized to handle the [Validation Test Matrix](#validation-test-matrix).
 
 ### 1. Data Extraction Flow
-> **Purpose**: Parses technical descriptions into structured JSON for validation.
-> **Location**: `extractFieldsFlow`
+> **Purpose**: Parses technical descriptions into structured JSON.
 
 ```text
 You are a Cable Engineering Data Extractor. 
 Parse technical descriptions into valid JSON.
-Return ONLY valid JSON. No conversational text.
+Return ONLY valid JSON. 
 
 JSON Structure:
 {
@@ -88,77 +107,39 @@ JSON Structure:
   "insulationThickness": number
 }
 
-Note: If the input text is completely irrelevant to cable engineering or nonsensical, set "isInvalidInput" to true.
-Fields should use technical abbreviations (e.g., "Cu", "PVC", "XLPE") where appropriate.
+Note: Understand technical abbreviations (e.g., "sqmm", "mm2", "Cu"). 
+Map them to their standard engineering meanings.
 ```
 
 ### 2. Structured Design Validation Flow
-> **Purpose**: Audits pre-structured design data against IEC standards.
-> **Location**: `validateDesignFlow`
+> **Purpose**: Audits design data with high technical rigor.
 
 ```text
 You are an expert Cable Design Validator for IEC 60502-1 and IEC 60228.
 Use the provided standards context ONLY to validate cable designs.
-Return strictly valid JSON ONLY. No markdown blocks.
+Compare provided values EXACTLY against threshold limits.
 
-JSON Structure:
-{
-  "isInvalidInput": boolean,
-  "fields": { [key: string]: any },
-  "validation": [
-    { "field": string, "status": "PASS" | "WARN" | "FAIL", "provided": any, "expected": any, "comment": string }
-  ],
-  "confidence": { "overall": number (0-1) },
-  "aiReasoning": string
-}
+SIGNALS:
+- PASS: Meets requirement with margin.
+- WARN: Missing critical fields (Standard/Voltage) or at nominal threshold limit.
+- FAIL: Strictly below/above standards thresholds.
 
-CRITICAL: Your "aiReasoning" MUST explicitly cite the specific IEC standard and threshold values from the provided context (e.g., "Per IEC 60502-1 Table 15..."). 
-Note: If the input design data is completely nonsensical or not a cable design, set "isInvalidInput" to true.
-CRITICAL: The "confidence" field MUST be an object with an "overall" property.
+CRITICAL: Your "aiReasoning" MUST cite the specific IEC table (e.g., "Per IEC 60502-1 Table 15...").
 ```
 
 ### 3. Free-Text Engineering Flow
-> **Purpose**: Performs extraction and validation in a single pass for complex descriptions.
-> **Location**: `validateFreeTextFlow`
+> **Purpose**: Expert-level analysis of complex natural language descriptions.
 
 ```text
 You are a Cable Engineering Expert.
-1. Extract parameters from the description.
-2. Validate them against IEC 60502-1 and IEC 60228 strictly using the provided context.
-Return strictly valid JSON ONLY. 
+1. Extract parameters and normalize technical units.
+2. Validate against IEC 60502-1 and IEC 60228 strictly using context.
 
-JSON Structure:
-{
-  "isInvalidInput": boolean,
-  "fields": { "standard": string, "voltage": string, ... },
-  "validation": [
-    { "field": string, "status": "PASS" | "WARN" | "FAIL", "provided": any, "expected": any, "comment": string }
-  ],
-  "confidence": { "overall": number (0-1) },
-  "aiReasoning": string
-}
-
-CRITICAL: In your "aiReasoning", you MUST cite the specific table or clause from the IEC standards context used for validation.
-Note: If the description is completely irrelevant to cable engineering or nonsensical, set "isInvalidInput" to true.
-CRITICAL: The "confidence" field MUST be an object with an "overall" property.
+CRITICAL:
+- If Standard/Voltage is missing, set a WARN signal and state assumption in Reasoning.
+- If insulation < nominal minimum, set a FAIL signal.
+- If insulation = nominal minimum, set a WARN signal (Borderline).
 ```
-
-## How AI Reasoning Works
-
-The **Reasoning Engine** is designed to provide "Explainable AI" for engineers. It follows a four-stage process:
-
-### 1. The Expert Monologue (Internal Audit)
-When you submit a design, the AI performs an internal monologue. It compares your input (e.g., "CSA: 10mm²") with the standards table (e.g., "Minimum insulation for 10mm² is 1.0mm"). 
-
-### 2. Standards Grounding
-The engine fetches the raw Markdown from the `/standards` folder. This ensures the AI has "perfect memory" of technical tables that are too large for traditional hardcoding.
-
-### 3. Dual-Layer Reporting
-- **Field-Level Comments**: The AI generates a `comment` for every single cell in the results table. These are concise technical notes (e.g., *"0.9mm is above the 0.8mm nominal minimum"*).
-- **Global Reasoning**: It drafts a comprehensive "Solution Based on IEC Standards" summary. This is a multi-paragraph technical justification shown in the slide-out drawer.
-
-### 4. Confidence Scoring
-Based on the clarity of the input and the match to the standards, the AI calculates a `confidence.overall` score (0.0 to 1.0). This helps human engineers decide if they need to double-check the AI's conclusions.
 
 ---
 
@@ -228,33 +209,33 @@ Use these specialized test cases to verify the system's grounding in IEC standar
 *   **Input**: `IEC 60502-1 cable, 16 sqmm Cu Class 2, PVC insulation 0.9 mm`
 *   **Expected Output**:
     *   Insulation thickness → **WARN**
-    *   **Reasoning**: AI explains that 0.9mm is technically compliant but at the nominal limit with zero safety margin per IEC 60502-1 Table 15.
+    *   **Explanation**: References nominal thickness vs. tolerance/safety margin.
     *   **Confidence**: Medium (~0.6 - 0.7)
 
 ### Test Case 3: Clearly Invalid Design
 *   **Input**: `IEC 60502-1, 0.6/1 kV, Cu, Class 2, 10 mm², PVC, insulation 0.5 mm`
 *   **Expected Output**:
     *   Insulation thickness → **FAIL**
-    *   **Reasoning**: Explicitly mentions that 0.5mm is below the 0.8mm nominal minimum for this voltage class.
-    *   **Confidence**: High (In identifying the failure)
+    *   **Reasoning**: Clear technical justification for the failure.
+    *   **Confidence**: Low confidence is not acceptable; the AI must remain decisive in failures.
 
 ### Test Case 4: Ambiguous Input
 *   **Input**: `10 sqmm copper cable with PVC insulation`
 *   **Expected Output**:
-    *   Standard (IEC 60502-1) → **WARN** (Missing standard assumed)
-    *   Voltage (0.6/1kV) → **WARN** (Voltage unspecified)
-    *   **Reasoning**: AI clearly states that while parameters are extracted, the lack of explicit context forces assumptions.
+    *   Missing standard → **WARN**
+    *   Voltage unspecified → **WARN**
+    *   **Reasoning**: AI explanation clearly states technical assumptions made during parsing.
 
 ---
 
 ## Architectural Guardrails (Red Flags)
 
-This system follows a strict **Clean AI Architecture**. Developers must avoid these "Red Flags" that compromise system integrity:
+Developers must avoid these "Red Flags" to maintain system integrity:
 
-*   🚩 **Direct AI Calls in Controllers**: Controllers must only handle routing and DTO validation. All AI orchestration belongs in the `AIGatewayService`.
-*   🚩 **Missing DTO Validation**: Every incoming request must be validated using `class-validator` and `ValidationPipe`.
-*   🚩 **Hardcoded IEC Rules**: **CRITICAL**: IEC validation logic is performed EXCLUSIVELY by the AI reasoning engine. No IEC tables, thresholds, or lookup logic should be hardcoded in the codebase or stored in SQL/JSON databases.
-*   🚩 **Ignoring Zod Contracts**: Every AI response must be parsed through a Zod schema to prevent runtime "unstructured data" crashes.
+*   🚩 **AI calls directly inside controllers**: All AI orchestration belongs in the `AIGatewayService`, never in the controller.
+*   🚩 **No DTO validation**: All input must be strictly validated before reaching the AI layer.
+*   🚩 **Hardcoded IEC Rules**: **IMPORTANT**: IEC validation logic is intentionally performed by AI. IEC rules and tables must NOT be hardcoded or stored in physical validation databases.
+*   🚩 **Ignoring Zod Contracts**: AI outputs must be validated against Zod schemas to ensure type safety.
 
 ## Project Structure
 

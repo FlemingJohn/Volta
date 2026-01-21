@@ -22,7 +22,8 @@ JSON Structure:
 }
 
 Note: If the input text is completely irrelevant to cable engineering or nonsensical, set "isInvalidInput" to true.
-Fields should use technical abbreviations (e.g., "Cu", "PVC", "XLPE") where appropriate.`;
+Understand technical abbreviations (e.g., "sqmm", "mm2", "Cu") and map them to their standard engineering meanings.
+Fields should use technical abbreviations where appropriate.`;
 
     const userPrompt = `Extract parameters from: "${freeText}"`;
 
@@ -63,7 +64,11 @@ JSON Structure:
   "aiReasoning": string
 }
 
-CRITICAL: Your "aiReasoning" MUST explicitly cite the specific IEC standard and threshold values from the provided context (e.g., "Per IEC 60502-1 Table 15..."). 
+CRITICAL: Your "aiReasoning" MUST be structured with two markdown headers:
+1. "### Technical Justification": Explicitly cite the specific IEC standard and threshold values from the provided context (e.g., "Per IEC 60502-1 Table 15..."). Compare provided values exactly against threshold limits.
+2. "### Recommendations": Provide specific engineering advice based on the results (e.g., "Increase insulation by 0.2mm to ensure safety margin").
+
+Note: If a critical field (like Standard or Voltage) is missing from the input, issue a WARN in the validation array and explain the assumption in Reasoning.
 Note: If the input design data is completely nonsensical or not a cable design, set "isInvalidInput" to true.
 CRITICAL: The "confidence" field MUST be an object with an "overall" property.`;
 
@@ -103,7 +108,10 @@ JSON Structure:
   "aiReasoning": string
 }
 
-CRITICAL: In your "aiReasoning", you MUST cite the specific table or clause from the IEC standards context used for validation.
+CRITICAL: Your "aiReasoning" MUST be structured with two markdown headers:
+1. "### Technical Justification": Cite the specific table or clause from the IEC standards context used for validation.
+2. "### Recommendations": Provide specific engineering advice or next steps for the designer.
+
 Note: If the description is completely irrelevant to cable engineering or nonsensical, set "isInvalidInput" to true.
 CRITICAL: The "confidence" field MUST be an object with an "overall" property.`;
 
