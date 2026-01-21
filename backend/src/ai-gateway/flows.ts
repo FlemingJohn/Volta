@@ -1,5 +1,5 @@
 import { StructuredInputSchema, ValidationResponseSchema } from './schemas';
-import { USE_FALLBACK } from './config';
+import { getUseFallback } from './config';
 import { getStandardsContext } from './context';
 import { callOllama, callGemini } from './callers';
 
@@ -24,7 +24,7 @@ Fields should use technical abbreviations (e.g., "Cu", "PVC", "XLPE") where appr
 
     const userPrompt = `Extract parameters from: "${freeText}"`;
 
-    if (!USE_FALLBACK) {
+    if (!getUseFallback()) {
         return await callGemini(systemPrompt, userPrompt, StructuredInputSchema);
     }
 
@@ -62,7 +62,7 @@ CRITICAL: The "confidence" field MUST be an object with an "overall" property.`;
 
     const userPrompt = `STANDARDS CONTEXT:\n${standardsContext}\n\nPENDING DESIGN:\n${designFields}`;
 
-    if (!USE_FALLBACK) {
+    if (!getUseFallback()) {
         return await callGemini(systemPrompt, userPrompt, ValidationResponseSchema);
     }
 
@@ -99,7 +99,7 @@ CRITICAL: The "confidence" field MUST be an object with an "overall" property.`;
 
     const userPrompt = `STANDARDS CONTEXT:\n${standardsContext}\n\nDESCRIPTION: "${freeText}"`;
 
-    if (!USE_FALLBACK) {
+    if (!getUseFallback()) {
         return await callGemini(systemPrompt, userPrompt, ValidationResponseSchema);
     }
 

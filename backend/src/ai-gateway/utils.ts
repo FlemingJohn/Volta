@@ -1,14 +1,15 @@
 import { GoogleGenerativeAI } from '@google/generative-ai';
-import { GEMINI_API_KEY } from './config';
+import { getGeminiApiKey } from './config';
 
 let genAI: GoogleGenerativeAI | null = null;
 
 export const getGenAI = () => {
     if (genAI) return genAI;
-    if (!GEMINI_API_KEY) {
+    const apiKey = getGeminiApiKey();
+    if (!apiKey) {
         console.error('CRITICAL: GEMINI_API_KEY is not defined in environment.');
     }
-    genAI = new GoogleGenerativeAI(GEMINI_API_KEY);
+    genAI = new GoogleGenerativeAI(apiKey);
     return genAI;
 };
 

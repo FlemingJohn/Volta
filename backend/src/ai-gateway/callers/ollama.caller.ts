@@ -1,6 +1,6 @@
 import axios from 'axios';
 import { ZodSchema } from 'zod';
-import { OLLAMA_MODEL, OLLAMA_URL } from '../config';
+import { getOllamaModel, getOllamaUrl } from '../config';
 import { extractJson } from '../utils';
 
 export async function callOllama(system: string, prompt: string, schema: ZodSchema, timeoutMs: number) {
@@ -8,9 +8,10 @@ export async function callOllama(system: string, prompt: string, schema: ZodSche
     const timeout = setTimeout(() => controller.abort(), timeoutMs);
 
     try {
-        console.log(`Calling Ollama (${OLLAMA_MODEL})...`);
-        const response = await axios.post(`${OLLAMA_URL}/api/generate`, {
-            model: OLLAMA_MODEL,
+        const model = getOllamaModel();
+        console.log(`Calling Ollama (${model})...`);
+        const response = await axios.post(`${getOllamaUrl()}/api/generate`, {
+            model,
             system,
             prompt,
             stream: false,

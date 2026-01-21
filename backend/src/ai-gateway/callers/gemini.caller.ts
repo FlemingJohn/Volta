@@ -1,12 +1,13 @@
 import { ZodSchema } from 'zod';
-import { GEMINI_MODEL } from '../config';
+import { getGeminiModel } from '../config';
 import { extractJson, delay, getGenAI } from '../utils';
 
 export async function callGemini(system: string, prompt: string, schema: ZodSchema, retries = 3): Promise<any> {
-    console.log(`Calling Gemini (${GEMINI_MODEL})...`);
+    const modelName = getGeminiModel();
+    console.log(`Calling Gemini (${modelName})...`);
 
     const genAIClient = getGenAI();
-    const model = genAIClient.getGenerativeModel({ model: GEMINI_MODEL }, { apiVersion: 'v1beta' });
+    const model = genAIClient.getGenerativeModel({ model: modelName }, { apiVersion: 'v1beta' });
 
     try {
         const result = await model.generateContent({
@@ -40,7 +41,7 @@ export async function callGemini(system: string, prompt: string, schema: ZodSche
             return callGemini(system, prompt, schema, retries - 1);
         }
 
-        console.error(`Gemini Fatal Error (${GEMINI_MODEL}): ${error.message}`);
+        console.error(`Gemini Fatal Error (${modelName}): ${error.message}`);
         throw new Error(`Gemini Failure: ${error.message}`);
     }
 }
