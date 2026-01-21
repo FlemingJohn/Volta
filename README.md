@@ -233,7 +233,7 @@ Use these specialized test cases to verify the system's grounding in IEC standar
 Developers must avoid these "Red Flags" to maintain system integrity:
 
 *   🚩 **AI calls directly inside controllers**: All AI orchestration belongs in the `AIGatewayService`, never in the controller.
-*   🚩 **No DTO validation**: All input must be strictly validated before reaching the AI layer.
+*   🚩 **No DTO validation**: All input must be strictly validated using `class-validator` before reaching the AI layer. **Why?** Sending unvalidated or malformed data to an LLM leads to "Garbage In, Garbage Out," wastes cloud tokens (Gemini), and causes local resource leakage (Ollama). DTOs act as the first line of defense, ensuring only technically viable data is processed.
 *   🚩 **Hardcoded IEC Rules**: **IMPORTANT**: IEC validation logic is intentionally performed by AI. IEC rules and tables must NOT be hardcoded or stored in physical validation databases.
 *   🚩 **Ignoring Zod Contracts**: AI outputs must be validated against Zod schemas to ensure type safety.
 
