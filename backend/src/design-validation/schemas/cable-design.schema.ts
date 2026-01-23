@@ -3,26 +3,29 @@ import { Document } from 'mongoose';
 
 @Schema({ timestamps: true })
 export class CableDesign extends Document {
-    @Prop({ required: true })
+    @Prop()
     standard: string;
 
-    @Prop({ required: true })
+    @Prop()
     voltage: string;
 
-    @Prop({ required: true })
+    @Prop()
     conductorMaterial: string;
 
-    @Prop({ required: true })
+    @Prop()
     conductorClass: string;
 
-    @Prop({ required: true })
+    @Prop()
     csa: number;
 
-    @Prop({ required: true })
+    @Prop()
     insulationMaterial: string;
 
-    @Prop({ required: true })
+    @Prop()
     insulationThickness: number;
+
+    @Prop()
+    maxResistance: string;
 }
 
 export const CableDesignSchema = SchemaFactory.createForClass(CableDesign);

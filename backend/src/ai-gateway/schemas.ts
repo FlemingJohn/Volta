@@ -26,6 +26,7 @@ export const StructuredInputSchema = z.object({
     csa: createNumericSchema(),
     insulationMaterial: z.string().optional(),
     insulationThickness: createNumericSchema(),
+    maxResistance: z.string().optional(),
 });
 
 

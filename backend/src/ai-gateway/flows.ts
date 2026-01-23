@@ -18,7 +18,8 @@ JSON Structure:
   "conductorClass": string,
   "csa": number,
   "insulationMaterial": string,
-  "insulationThickness": number
+  "insulationThickness": number,
+  "maxResistance": string
 }
 
 Note: If the input text is completely irrelevant to cable engineering or nonsensical, set "isInvalidInput" to true.
@@ -28,7 +29,7 @@ Fields should use technical abbreviations where appropriate.`;
     const userPrompt = `Extract parameters from: "${freeText}"`;
 
     try {
-        return await callOllama(systemPrompt, userPrompt, StructuredInputSchema, 15000);
+        return await callOllama(systemPrompt, userPrompt, StructuredInputSchema, 120000);
     } catch (error: any) {
         console.error(`Ollama Internal Error: ${error.message}`);
 
@@ -75,7 +76,7 @@ CRITICAL: The "confidence" field MUST be an object with an "overall" property.`;
     const userPrompt = `STANDARDS CONTEXT:\n${standardsContext}\n\nPENDING DESIGN:\n${designFields}`;
 
     try {
-        return await callOllama(systemPrompt, userPrompt, ValidationResponseSchema, 15000);
+        return await callOllama(systemPrompt, userPrompt, ValidationResponseSchema, 120000);
     } catch (error: any) {
         console.error(`Ollama Internal Error: ${error.message}`);
 
@@ -100,7 +101,7 @@ Return strictly valid JSON ONLY.
 JSON Structure:
 {
   "isInvalidInput": boolean,
-  "fields": { "standard": string, "voltage": string, ... },
+  "fields": { "standard": string, "voltage": string, "maxResistance": string, ... },
   "validation": [
     { "field": string, "status": "PASS" | "WARN" | "FAIL", "provided": any, "expected": any, "comment": string }
   ],
@@ -118,7 +119,7 @@ CRITICAL: The "confidence" field MUST be an object with an "overall" property.`;
     const userPrompt = `STANDARDS CONTEXT:\n${standardsContext}\n\nDESCRIPTION: "${freeText}"`;
 
     try {
-        return await callOllama(systemPrompt, userPrompt, ValidationResponseSchema, 20000);
+        return await callOllama(systemPrompt, userPrompt, ValidationResponseSchema, 120000);
     } catch (error: any) {
         console.error(`Ollama Internal Error: ${error.message}`);
 

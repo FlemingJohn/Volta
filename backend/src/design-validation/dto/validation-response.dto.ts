@@ -19,4 +19,8 @@ export class ValidationResponseDto {
     @IsOptional()
     @IsString()
     aiReasoning?: string;
+
+    @IsOptional()
+    @IsString()
+    recordId?: string;
 }

@@ -26,7 +26,16 @@ export function extractJson(text: string): any {
             throw new Error('No JSON object found in response');
         }
         const jsonStr = trimmed.substring(start, end + 1);
-        return JSON.parse(jsonStr);
+
+        const sanitized = jsonStr
+            .replace(/[\u0000-\u001F]+/g, (match) => {
+                if (match === '\n' || match === '\r' || match === '\t') return match;
+                return ' ';
+            })
+
+            .replace(/\\([^"\\\/bfnrtu])/g, '\\\\$1');
+
+        return JSON.parse(sanitized);
     } catch (e: any) {
         console.error(`JSON Parse Failed (Length: ${trimmed.length}). Error: ${e.message}`);
         console.error('Raw content around failure:', trimmed.substring(Math.max(0, trimmed.length / 2 - 50), Math.min(trimmed.length, trimmed.length / 2 + 50)));

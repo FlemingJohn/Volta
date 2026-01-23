@@ -45,7 +45,7 @@ export class DesignValidationService {
                     throw new InternalServerErrorException('Invalid input, recheck the input');
                 }
 
-                // Store the design data extracted from free text
+
                 if (aiValidationResult.fields) {
                     const savedDesign = await this.cableDesignModel.create(aiValidationResult.fields);
                     aiValidationResult.recordId = savedDesign._id.toString();
@@ -71,7 +71,7 @@ export class DesignValidationService {
                 throw new InternalServerErrorException('Invalid input, recheck the input');
             }
 
-            // Store structured design if it's not already from a record
+
             if (!validationRequest.recordId && designData) {
                 const savedDesign = await this.cableDesignModel.create(designData);
                 aiValidationResult.recordId = savedDesign._id.toString();

@@ -28,4 +28,8 @@ export class StructuredInputDto {
   @IsOptional()
   @IsNumber()
   insulationThickness?: number;
+
+  @IsOptional()
+  @IsString()
+  maxResistance?: string;
 }
