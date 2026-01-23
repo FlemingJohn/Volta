@@ -22,7 +22,6 @@ export async function callOllama(system: string, prompt: string, schema: ZodSche
         clearTimeout(timeout);
         const data = extractJson(response.data.response);
 
-        // Validate against schema
         try {
             return schema.parse(data);
         } catch (schemaError: any) {

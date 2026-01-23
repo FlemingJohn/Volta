@@ -17,39 +17,64 @@ export const delay = (ms: number) => new Promise((resolve) => setTimeout(resolve
 
 export function extractJson(text: string): any {
     if (!text) throw new Error('AI returned empty response');
-    const trimmed = text.trim();
-    try {
-        const start = trimmed.indexOf('{');
-        const end = trimmed.lastIndexOf('}');
-        if (start === -1 || end === -1) {
-            console.error('No JSON markers found. Raw length:', trimmed.length);
-            throw new Error('No JSON object found in response');
+
+    const markdownMatch = text.match(/```(?:json)?\s*([\s\S]*?)\s*```/);
+    let target = markdownMatch ? markdownMatch[1] : text;
+
+    const tryParse = (str: string, label: string) => {
+        try {
+            return JSON.parse(str);
+        } catch (e: any) {
+            return { error: e, label, content: str };
         }
-        const jsonStr = trimmed.substring(start, end + 1);
+    };
+
+    let result = tryParse(target.trim(), "raw");
+    if (!(result && result.error)) return result;
+
+    const start = target.indexOf('{');
+    const end = target.lastIndexOf('}');
+    if (start !== -1 && end !== -1) {
+        const jsonStr = target.substring(start, end + 1);
+        result = tryParse(jsonStr, "bounded");
+        if (!(result && result.error)) return result;
 
         const sanitized = jsonStr
-            .replace(/[\u0000-\u001F]+/g, (match) => {
+            .replace(/[\u0000-\u0008\u000B\u000C\u000E-\u001F]+/g, ' ')
+            .replace(/\\([^"\\\/bfnrtu])/g, '\\\\$1')
+            .replace(/\}\s*\{/g, '},{')
+            .replace(/\]\s*\[/g, '],[')
+            .replace(/\}\s*\[/g, '},[')
+            .replace(/\]\s*\{/g, '],{');
 
-                return ' ';
-            })
-            .replace(/\\([^"\\\/bfnrtu])/g, '\\\\$1');
+        result = tryParse(sanitized, "sanitized");
+        if (!(result && result.error)) return result;
 
-        try {
-            return JSON.parse(sanitized);
-        } catch (innerError: any) {
+        const surgical = sanitized.replace(/\n(?!\s*["\}])/g, '\\n').replace(/\r(?!\s*["\}])/g, '\\r');
 
-            console.error(`Initial JSON Parse Failed. Error: ${innerError.message}`);
+        result = tryParse(surgical, "surgical-repair");
+        if (!(result && result.error)) return result;
 
-            const match = innerError.message.match(/at position (\d+)/);
-            if (match) {
-                const pos = parseInt(match[1], 10);
-                console.error('Context around error pos:', sanitized.substring(Math.max(0, pos - 50), Math.min(sanitized.length, pos + 50)));
-            }
+        const aggressive = surgical.replace(/\n/g, '\\n').replace(/\r/g, '\\r')
+            .replace(/^\{\\n/, '{\n')
+            .replace(/\\n\}$/, '\n}')
+            .replace(/,\\n\s*"/g, ',\n  "');
 
-            throw innerError;
-        }
-    } catch (e: any) {
-        console.error(`JSON Parse Failed (Length: ${trimmed.length}). Error: ${e.message}`);
-        throw new Error(`AI returned invalid JSON format: ${e.message}`);
+        result = tryParse(aggressive, "aggressive-last-resort");
+        if (!(result && result.error)) return result;
     }
+
+    const lastError = result.error;
+    const lastLabel = result.label;
+    const lastContent = result.content;
+
+    console.error(`JSON Extraction failed at stage: ${lastLabel}. Error: ${lastError.message}`);
+
+    const match = lastError.message.match(/at position (\d+)/);
+    if (match) {
+        const pos = parseInt(match[1], 10);
+        console.error(`Context around failure: ${lastContent.substring(Math.max(0, pos - 40), Math.min(lastContent.length, pos + 40))}`);
+    }
+
+    throw new Error(`AI returned invalid JSON format (failed at ${lastLabel}): ${lastError.message}`);
 }
