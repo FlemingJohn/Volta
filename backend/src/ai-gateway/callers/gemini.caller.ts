@@ -22,7 +22,7 @@ export async function callGemini(system: string, prompt: string, schema: ZodSche
         const text = result.response.text();
         const data = extractJson(text);
 
-        // Validate against schema
+
         try {
             return schema.parse(data);
         } catch (schemaError: any) {
@@ -36,7 +36,7 @@ export async function callGemini(system: string, prompt: string, schema: ZodSche
             error.message.includes("retry in");
 
         if (isRateLimit && retries > 0) {
-            console.warn(`⚠️ Gemini Rate Limit Hit. Waiting 20s... (${retries} attempts left)`);
+            console.warn(`Gemini Rate Limit Hit. Waiting 20s... (${retries} attempts left)`);
             await delay(20000);
             return callGemini(system, prompt, schema, retries - 1);
         }
