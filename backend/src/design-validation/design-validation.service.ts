@@ -57,9 +57,12 @@ export class DesignValidationService {
                     throw error;
                 }
                 console.error('Unified Validation Failed:', error);
-                throw new InternalServerErrorException(
-                    'Validation failed. Please check your input and try again.'
-                );
+
+                const errorMessage = error.message?.includes('AI returned invalid JSON')
+                    ? `AI Formatting Error: The engine returned an unreadable response. Try rephrasing or simplifying your input.`
+                    : error.message || 'Validation failed. Please check your input and try again.';
+
+                throw new InternalServerErrorException(errorMessage);
             }
         }
 
@@ -86,15 +89,17 @@ export class DesignValidationService {
             }
             console.error('Validation Flow Failed:', error);
 
-            if (error.message?.includes('check your input')) {
-                throw new InternalServerErrorException(
-                    'Validation failed. Please check your input and try again. If the issue persists, contact support.'
-                );
+            let errorMessage = 'Validation service temporarily unavailable. Please try again.';
+
+            if (error.message?.includes('AI returned invalid JSON')) {
+                errorMessage = `AI Formatting Error: The engine returned an unreadable response. Please check your engineering parameters.`;
+            } else if (error.message?.includes('Ollama failed')) {
+                errorMessage = `Ollama Connection Error: ${error.message}`;
+            } else if (error.message) {
+                errorMessage = error.message;
             }
 
-            throw new InternalServerErrorException(
-                'Validation service temporarily unavailable. Please try again.'
-            );
+            throw new InternalServerErrorException(errorMessage);
         }
     }
 }
