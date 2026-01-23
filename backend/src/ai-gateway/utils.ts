@@ -55,12 +55,14 @@ export function extractJson(text: string): any {
         result = tryParse(surgical, "surgical-repair");
         if (!(result && result.error)) return result;
 
-        const aggressive = surgical.replace(/\n/g, '\\n').replace(/\r/g, '\\r')
-            .replace(/^\{\\n/, '{\n')
-            .replace(/\\n\}$/, '\n}')
-            .replace(/,\\n\s*"/g, ',\n  "');
+        const aggressive = surgical
+            .replace(/\r/g, '') // Strip carriage returns entirely for aggressive pass
+            .replace(/\n(?!\s*["\}])/g, '\\n') // Escape newlines that are NOT structural whitespace
+            .replace(/\\n\s*\\n/g, '\\n') // Deduplicate escapes
+            .replace(/^\{\n+/, '{') // Clean leading structural space
+            .replace(/\n+\}$/, '}'); // Clean trailing structural space
 
-        result = tryParse(aggressive, "aggressive-last-resort");
+        result = tryParse(aggressive, "refined-aggressive");
         if (!(result && result.error)) return result;
     }
 
