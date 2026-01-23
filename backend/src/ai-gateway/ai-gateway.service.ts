@@ -1,5 +1,5 @@
 import { Injectable } from '@nestjs/common';
-import { extractFieldsFlow, validateDesignFlow, validateFreeTextFlow } from './flows';
+import { extractFieldsFlow, validateDesignFlow, validateFreeTextFlow, validateMultiCoreFlow } from './flows';
 
 @Injectable()
 export class AIGatewayService {
@@ -13,5 +13,9 @@ export class AIGatewayService {
 
     async validateFreeText(freeText: string): Promise<any> {
         return validateFreeTextFlow(freeText);
+    }
+
+    async validateMultiCore(multiCoreText: string): Promise<any> {
+        return validateMultiCoreFlow(multiCoreText);
     }
 }
