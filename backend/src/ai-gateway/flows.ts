@@ -29,7 +29,7 @@ Fields should use technical abbreviations where appropriate.`;
     const userPrompt = `Extract parameters from: "${freeText}"`;
 
     try {
-        return await callOllama(systemPrompt, userPrompt, StructuredInputSchema, 120000);
+        return await callOllama(systemPrompt, userPrompt, StructuredInputSchema, 20000);
     } catch (error: any) {
         console.error(`Ollama Internal Error: ${error.message}`);
 
@@ -78,7 +78,7 @@ CRITICAL: The "confidence" field MUST be an object with an "overall" property.`;
     const userPrompt = `STANDARDS CONTEXT:\n${standardsContext}\n\nPENDING DESIGN:\n${designFields}`;
 
     try {
-        return await callOllama(systemPrompt, userPrompt, ValidationResponseSchema, 120000);
+        return await callOllama(systemPrompt, userPrompt, ValidationResponseSchema, 20000);
     } catch (error: any) {
         console.error(`Ollama Internal Error: ${error.message}`);
 
@@ -123,7 +123,7 @@ CRITICAL: The "confidence" field MUST be an object with an "overall" property.`;
     const userPrompt = `STANDARDS CONTEXT:\n${standardsContext}\n\nDESCRIPTION: "${freeText}"`;
 
     try {
-        return await callOllama(systemPrompt, userPrompt, ValidationResponseSchema, 120000);
+        return await callOllama(systemPrompt, userPrompt, ValidationResponseSchema, 20000);
     } catch (error: any) {
         console.error(`Ollama Internal Error: ${error.message}`);
 
