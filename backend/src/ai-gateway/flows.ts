@@ -65,6 +65,8 @@ JSON Structure:
   "aiReasoning": string
 }
 
+CRITICAL: Return ONLY valid JSON. Escape all special characters and newlines within "aiReasoning". Ensure the output is strictly parseable JSON. No preamble or post-text.
+
 CRITICAL: Your "aiReasoning" MUST be structured with two markdown headers:
 1. "### Technical Justification": Explicitly cite the specific IEC standard and threshold values from the provided context (e.g., "Per IEC 60502-1 Table 15..."). Compare provided values exactly against threshold limits.
 2. "### Recommendations": Provide specific engineering advice based on the results (e.g., "Increase insulation by 0.2mm to ensure safety margin").
@@ -108,6 +110,8 @@ JSON Structure:
   "confidence": { "overall": number (0-1) },
   "aiReasoning": string
 }
+
+CRITICAL: Return ONLY valid JSON. Escape all special characters and newlines within "aiReasoning". Ensure the output is strictly parseable JSON. No preamble or post-text.
 
 CRITICAL: Your "aiReasoning" MUST be structured with two markdown headers:
 1. "### Technical Justification": Cite the specific table or clause from the IEC standards context used for validation.

@@ -31,7 +31,7 @@ export const StructuredInputSchema = z.object({
 
 
 export const ValidationResponseSchema = z.object({
-    fields: z.record(z.string(), z.any()),
+    fields: StructuredInputSchema,
     validation: z.array(
         z.object({
             field: z.string(),

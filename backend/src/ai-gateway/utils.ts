@@ -29,16 +29,27 @@ export function extractJson(text: string): any {
 
         const sanitized = jsonStr
             .replace(/[\u0000-\u001F]+/g, (match) => {
-                if (match === '\n' || match === '\r' || match === '\t') return match;
+
                 return ' ';
             })
-
             .replace(/\\([^"\\\/bfnrtu])/g, '\\\\$1');
 
-        return JSON.parse(sanitized);
+        try {
+            return JSON.parse(sanitized);
+        } catch (innerError: any) {
+
+            console.error(`Initial JSON Parse Failed. Error: ${innerError.message}`);
+
+            const match = innerError.message.match(/at position (\d+)/);
+            if (match) {
+                const pos = parseInt(match[1], 10);
+                console.error('Context around error pos:', sanitized.substring(Math.max(0, pos - 50), Math.min(sanitized.length, pos + 50)));
+            }
+
+            throw innerError;
+        }
     } catch (e: any) {
         console.error(`JSON Parse Failed (Length: ${trimmed.length}). Error: ${e.message}`);
-        console.error('Raw content around failure:', trimmed.substring(Math.max(0, trimmed.length / 2 - 50), Math.min(trimmed.length, trimmed.length / 2 + 50)));
         throw new Error(`AI returned invalid JSON format: ${e.message}`);
     }
 }
