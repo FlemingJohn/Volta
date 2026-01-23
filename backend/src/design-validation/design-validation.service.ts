@@ -37,14 +37,12 @@ export class DesignValidationService {
 
         if (validationRequest.freeTextInput) {
             try {
-                // Check for multi-core input (semicolon-separated)
                 if (validationRequest.freeTextInput.includes(';')) {
                     const cores = validationRequest.freeTextInput
                         .split(';')
                         .map(c => c.trim())
                         .filter(c => c.length > 0);
 
-                    // If we have 2+ cores, route to multi-core flow
                     if (cores.length >= 2) {
                         const multiCoreResult = await this.aiGatewayService.validateMultiCore(
                             validationRequest.freeTextInput,
@@ -53,7 +51,6 @@ export class DesignValidationService {
                     }
                 }
 
-                // Single-core free-text validation
                 const aiValidationResult = await this.aiGatewayService.validateFreeText(
                     validationRequest.freeTextInput,
                 );

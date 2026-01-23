@@ -36,7 +36,7 @@ Return ONLY valid JSON (no markdown, no code blocks):
           "comment": "Meets minimum requirement"
         }
       ],
-      "confidence": { "overall": 95 },
+      "confidence": { "overall": 0.95 },
       "aiReasoning": "## Core 1 Analysis\\n- Standard: IEC 60502-1\\n- All parameters validated"
     },
     {
@@ -117,11 +117,18 @@ Per core, rate 0-100 based on:
 - Consistency (10 points)
 
 ## Critical Rules
-1. Return ONLY JSON - no markdown blocks, no extra text
-2. Auto-number cores sequentially (Core 1, Core 2, ...)
-3. Validate each core independently
-4. Calculate summary based on individual core results
-5. Use dynamic standards searching for all attributes
-6. Report non-technical fields as WARN/N/A
-7. Reserve isInvalidInput for truly nonsensical input only
+1. **JSON FORMATTING**: Return ONLY valid JSON - no markdown blocks, no code blocks, no extra text
+2. **ESCAPE SPECIAL CHARACTERS**: In all string values (especially aiReasoning):
+   - Newlines must be \\n (not literal newlines)
+   - Quotes must be \\" (not ")
+   - Backslashes must be \\\\ (not \\)
+   - Example: "aiReasoning": "Line 1\\nLine 2\\nLine 3"
+3. Auto-number cores sequentially (Core 1, Core 2, ...)
+4. Validate each core independently
+5. Calculate summary based on individual core results
+6. Use dynamic standards searching for all attributes
+7. Report non-technical fields as WARN/N/A
+8. Reserve isInvalidInput for truly nonsensical input only
+9. **CONFIDENCE**: Use decimal 0-1 range (e.g., 0.95 not 95) for overall confidence
 `;
+
