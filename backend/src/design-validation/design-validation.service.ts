@@ -18,84 +18,91 @@ export class DesignValidationService {
     ): Promise<ValidationResponseDto> {
         let designData = validationRequest.structuredInput;
 
-
-        if (validationRequest.recordId) {
-            let fetchedRecord: any = null;
-
-            if (isValidObjectId(validationRequest.recordId)) {
-                fetchedRecord = await this.cableDesignModel.findById(validationRequest.recordId).exec();
-            } else {
-                fetchedRecord = await this.cableDesignModel.findOne({ _id: validationRequest.recordId }).exec();
-            }
-
-            if (!fetchedRecord) {
-                throw new NotFoundException(`Cable record with ID ${validationRequest.recordId} not found.`);
-            }
-            designData = fetchedRecord.toObject();
-        }
-
-
-        if (validationRequest.freeTextInput) {
-            try {
-                if (validationRequest.freeTextInput.includes(';')) {
-                    const cores = validationRequest.freeTextInput
-                        .split(';')
-                        .map(c => c.trim())
-                        .filter(c => c.length > 0);
-
-                    if (cores.length >= 2) {
-                        const multiCoreResult = await this.aiGatewayService.validateMultiCore(
-                            validationRequest.freeTextInput,
-                        );
-                        return multiCoreResult;
-                    }
-                }
-
-                const aiValidationResult = await this.aiGatewayService.validateFreeText(
-                    validationRequest.freeTextInput,
-                );
-
-                if (aiValidationResult.isInvalidInput) {
-                    throw new InternalServerErrorException('Invalid input, recheck the input');
-                }
-
-
-                if (aiValidationResult.fields) {
-                    const savedDesign = await this.cableDesignModel.create(aiValidationResult.fields);
-                    aiValidationResult.recordId = savedDesign._id.toString();
-                }
-
-                return aiValidationResult;
-            } catch (error) {
-                this.handleValidationError(error);
-            }
-
-        }
-
-
         try {
-            const aiValidationResult = await this.aiGatewayService.validateDesign(designData);
-
-            if (aiValidationResult.isInvalidInput) {
-                throw new InternalServerErrorException('Invalid input, recheck the input');
+            if (validationRequest.recordId) {
+                designData = await this.resolveRecordData(validationRequest.recordId);
             }
 
+            let result: ValidationResponseDto;
 
-            if (!validationRequest.recordId && designData) {
-                const savedDesign = await this.cableDesignModel.create(designData);
-                aiValidationResult.recordId = savedDesign._id.toString();
-            } else if (validationRequest.recordId) {
-                aiValidationResult.recordId = validationRequest.recordId;
+            if (validationRequest.freeTextInput) {
+                result = await this.handleFreeTextValidation(validationRequest.freeTextInput);
+            } else {
+                result = await this.handleStructuredValidation(designData);
             }
 
-            return aiValidationResult;
+            return await this.saveAndFormatResult(result, validationRequest.recordId, designData);
+
         } catch (error) {
             this.handleValidationError(error);
         }
-
     }
 
-    private handleValidationError(error: any): void {
+    private async resolveRecordData(recordId: string): Promise<any> {
+        let fetchedRecord: any = null;
+
+        if (isValidObjectId(recordId)) {
+            fetchedRecord = await this.cableDesignModel.findById(recordId).exec();
+        } else {
+            fetchedRecord = await this.cableDesignModel.findOne({ _id: recordId }).exec();
+        }
+
+        if (!fetchedRecord) {
+            throw new NotFoundException(`Cable record with ID ${recordId} not found.`);
+        }
+        return fetchedRecord.toObject();
+    }
+
+    private async handleFreeTextValidation(text: string): Promise<ValidationResponseDto> {
+        if (text.includes(';')) {
+            const cores = text
+                .split(';')
+                .map(c => c.trim())
+                .filter(c => c.length > 0);
+
+            if (cores.length >= 2) {
+                return await this.aiGatewayService.validateMultiCore(text);
+            }
+        }
+
+        const result = await this.aiGatewayService.validateFreeText(text);
+
+        if (result.isInvalidInput) {
+            throw new InternalServerErrorException('Invalid input, recheck the input');
+        }
+
+        return result;
+    }
+
+    private async handleStructuredValidation(designData: any): Promise<ValidationResponseDto> {
+        const result = await this.aiGatewayService.validateDesign(designData);
+
+        if (result.isInvalidInput) {
+            throw new InternalServerErrorException('Invalid input, recheck the input');
+        }
+
+        return result;
+    }
+
+    private async saveAndFormatResult(
+        result: ValidationResponseDto,
+        recordId: string | undefined,
+        designData: any
+    ): Promise<ValidationResponseDto> {
+        if (result.fields && !recordId) {
+            const savedDesign = await this.cableDesignModel.create(result.fields);
+            result.recordId = savedDesign._id.toString();
+        } else if (!recordId && designData) {
+            const savedDesign = await this.cableDesignModel.create(designData);
+            result.recordId = savedDesign._id.toString();
+        } else if (recordId) {
+            result.recordId = recordId;
+        }
+
+        return result;
+    }
+
+    private handleValidationError(error: any): never {
         if (error.message === 'Invalid input, recheck the input') {
             throw error;
         }
