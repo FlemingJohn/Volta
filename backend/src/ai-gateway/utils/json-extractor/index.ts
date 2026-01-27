@@ -47,5 +47,7 @@ export const extractJson = (text: string): any => {
     }
 
     reportExtractionFailure(lastResult);
-    throw new Error(`AI returned invalid JSON format (failed at ${lastResult.stage}): ${lastResult.error.message}`);
+    const error: any = new Error(`AI returned invalid JSON format (failed at ${lastResult.stage}): ${lastResult.error.message}`);
+    error.stage = lastResult.stage;
+    throw error;
 };

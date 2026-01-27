@@ -67,17 +67,9 @@ export class DesignValidationService {
 
                 return aiValidationResult;
             } catch (error) {
-                if (error.message === 'Invalid input, recheck the input') {
-                    throw error;
-                }
-                console.error('Unified Validation Failed:', error);
-
-                const errorMessage = error.message?.includes('AI returned invalid JSON')
-                    ? `AI Formatting Error: The engine returned an unreadable response. Try rephrasing or simplifying your input.`
-                    : error.message || 'Validation failed. Please check your input and try again.';
-
-                throw new InternalServerErrorException(errorMessage);
+                this.handleValidationError(error);
             }
+
         }
 
 
@@ -98,22 +90,30 @@ export class DesignValidationService {
 
             return aiValidationResult;
         } catch (error) {
-            if (error.message === 'Invalid input, recheck the input') {
-                throw error;
-            }
-            console.error('Validation Flow Failed:', error);
-
-            let errorMessage = 'Validation service temporarily unavailable. Please try again.';
-
-            if (error.message?.includes('AI returned invalid JSON')) {
-                errorMessage = `AI Formatting Error: The engine returned an unreadable response. Please check your engineering parameters.`;
-            } else if (error.message?.includes('Ollama failed')) {
-                errorMessage = `Ollama Connection Error: ${error.message}`;
-            } else if (error.message) {
-                errorMessage = error.message;
-            }
-
-            throw new InternalServerErrorException(errorMessage);
+            this.handleValidationError(error);
         }
+
+    }
+
+    private handleValidationError(error: any): void {
+        if (error.message === 'Invalid input, recheck the input') {
+            throw error;
+        }
+        console.error('Validation Flow Failed:', error);
+
+        let errorMessage = 'Validation service temporarily unavailable. Please try again.';
+
+        if (error.message?.includes('AI returned invalid JSON')) {
+            errorMessage = `AI Formatting Error: The engine returned an unreadable response. Try rephrasing or simplifying your input.`;
+            if (error.stage) {
+                errorMessage += ` (Failure Stage: ${error.stage})`;
+            }
+        } else if (error.message?.includes('Ollama failed')) {
+            errorMessage = `Ollama Connection Error: ${error.message}`;
+        } else if (error.message) {
+            errorMessage = error.message;
+        }
+
+        throw new InternalServerErrorException(errorMessage);
     }
 }
